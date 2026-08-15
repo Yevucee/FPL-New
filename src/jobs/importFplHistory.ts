@@ -51,14 +51,13 @@ export async function importFplHistory(
 
   for (const seasonName of seasonNames) {
     const snapshot = await buildPastSeasonSnapshotFromFpl(leagueId, seasonName);
-    await importSnapshot({
-      name: "fpl-history",
-      getLeagueSnapshot: async () => snapshot,
-    });
-    await db
-      .update(seasons)
-      .set({ state: "archived-summary" })
-      .where(eq(seasons.name, seasonName));
+    await importSnapshot(
+      {
+        name: "fpl-history",
+        getLeagueSnapshot: async () => snapshot,
+      },
+      { mode: "history" },
+    );
   }
 
   return seasonNames.length;

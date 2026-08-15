@@ -7,7 +7,7 @@ No manual import is required in production.
 
 | When | What happens |
 |------|----------------|
-| `LEAGUE_PROVIDER_ID` set on Railway | Cron runs `job:automated-sync` every 6 hours |
+| `LEAGUE_PROVIDER_ID` set on Railway | Cron runs `job:automated-sync` (gated every 15 min) |
 | First sync | Imports completed seasons from FPL `history.past` (final tables) |
 | Each gameweek | Live GW data synced automatically |
 | After GW deadline | Captain + most-owned enriched from picks API |
@@ -20,8 +20,15 @@ No manual import is required in production.
 
 ## FPL API limits
 
-FPL does not expose gameweek-by-gameweek data for seasons that have already
-finished. Only seasons synced during the live year support GW scrolling.
+FPL creates a **new league ID each season** for private leagues. The old ID only
+shows that year's standings on FPL's site. This app keeps history by:
+
+1. **Summary archives** — season-end totals from each manager's `history.past`
+   (imported automatically on first sync after `LEAGUE_PROVIDER_ID` is set)
+2. **Full archives** — GW-by-GW data only for seasons captured live via cron
+
+FPL does not expose gameweek-by-gameweek league standings for completed seasons.
+Only seasons synced during the live year support GW scrolling.
 
 ## URLs
 

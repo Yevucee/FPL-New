@@ -20,6 +20,13 @@ export interface ImportCounts {
   failed: number;
 }
 
+export type ImportSnapshotMode = "live" | "history";
+
+export interface ImportSnapshotOptions {
+  /** `live` activates the season and archives other active seasons. `history` writes summary archives only. */
+  mode?: ImportSnapshotMode;
+}
+
 /**
  * Idempotent league import (specification section 8).
  *
@@ -29,13 +36,15 @@ export interface ImportCounts {
  */
 export async function importSnapshot(
   provider: FantasyDataProvider,
+  options: ImportSnapshotOptions = {},
 ): Promise<ImportCounts> {
+  const mode = options.mode ?? "live";
   const correlationId = crypto.randomUUID();
   const [run] = await db
     .insert(syncRuns)
     .values({
       provider: provider.name,
-      scope: "league-current",
+      scope: mode === "history" ? "league-history" : "league-current",
       status: "running",
       correlationId,
       codeVersion: process.env.GIT_SHA ?? "dev",
@@ -46,7 +55,7 @@ export async function importSnapshot(
 
   try {
     const snapshot = await provider.getLeagueSnapshot();
-    await applySnapshot(snapshot, counts);
+    await applySnapshot(snapshot, counts, mode);
 
     await db
       .update(syncRuns)
@@ -77,11 +86,16 @@ export async function importSnapshot(
 async function applySnapshot(
   snapshot: LeagueSnapshot,
   counts: ImportCounts,
+  mode: ImportSnapshotMode = "live",
 ): Promise<void> {
-  await db
-    .update(seasons)
-    .set({ state: "archived" })
-    .where(and(eq(seasons.state, "active"), ne(seasons.name, snapshot.season.name)));
+  const seasonState = mode === "history" ? "archived-summary" : "active";
+
+  if (mode === "live") {
+    await db
+      .update(seasons)
+      .set({ state: "archived" })
+      .where(and(eq(seasons.state, "active"), ne(seasons.name, snapshot.season.name)));
+  }
 
   const [season] = await db
     .insert(seasons)
@@ -89,13 +103,13 @@ async function applySnapshot(
       name: snapshot.season.name,
       providerId: snapshot.season.providerId ?? null,
       startEvent: snapshot.season.startEvent,
-      state: "active",
+      state: seasonState,
     })
     .onConflictDoUpdate({
       target: seasons.name,
       set: {
         providerId: snapshot.season.providerId ?? null,
-        state: "active",
+        ...(mode === "live" ? { state: "active" as const } : { state: "archived-summary" as const }),
       },
     })
     .returning();
@@ -111,7 +125,11 @@ async function applySnapshot(
     })
     .onConflictDoUpdate({
       target: leagues.slug,
-      set: { name: snapshot.league.name, visibility: snapshot.league.visibility },
+      set: {
+        name: snapshot.league.name,
+        visibility: snapshot.league.visibility,
+        providerId: snapshot.league.providerId ?? null,
+      },
     })
     .returning();
 
