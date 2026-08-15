@@ -5,6 +5,7 @@ import {
   importFplHistory,
   needsReconstructedHistoryRefresh,
   purgeReconstructedArchives,
+  purgeReconstructedSeasonArchives,
   purgeSummaryArchives,
 } from "./importFplHistory";
 
@@ -65,8 +66,14 @@ export async function ensureHistoryFresh(
     };
   }
 
-  const purged = await purgeReconstructedArchives();
-  const imported = await importFplHistory(leagueId, { reconstructedOnly: true });
+  const targetSeasons = refreshCheck.seasons;
+  const purged = targetSeasons?.length
+    ? await purgeReconstructedSeasonArchives(targetSeasons)
+    : await purgeReconstructedArchives();
+  const imported = await importFplHistory(leagueId, {
+    reconstructedOnly: true,
+    seasonNames: targetSeasons,
+  });
   return {
     action: "refreshed",
     reason: refreshCheck.reason,

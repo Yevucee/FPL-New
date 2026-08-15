@@ -20,6 +20,13 @@ import { reconstructedHistoryStale } from "./historyRefresh";
 
 const ARCHIVED_STATES = ["archived", "archived-summary"] as const;
 
+export interface HistoryRefreshCheck {
+  needed: boolean;
+  reason: string;
+  /** When set, only these reconstructed seasons need rebuilding (faster deploy refresh). */
+  seasons?: string[];
+}
+
 function reconstructedSeasonNames(currentSeason: string): string[] {
   const historyIds = leagueHistoryProviderIds();
   return selChampions
@@ -27,10 +34,48 @@ function reconstructedSeasonNames(currentSeason: string): string[] {
     .filter((name) => name !== currentSeason && !historyIds.has(name));
 }
 
+async function seasonsMissingFormerMembers(
+  leagueDbId: string,
+  currentSeason: string,
+): Promise<string[]> {
+  const historyIds = leagueHistoryProviderIds();
+  const stale: string[] = [];
+
+  for (const seasonName of reconstructedSeasonNames(currentSeason)) {
+    for (const manual of manualHistoricalEntryForSeason(seasonName)) {
+      const seasonRow = await db.query.seasons.findFirst({
+        where: eq(seasons.name, seasonName),
+      });
+      if (!seasonRow) continue;
+
+      const stored = await db
+        .select({ providerEntryId: seasonEntries.providerEntryId })
+        .from(seasonEntries)
+        .where(
+          and(
+            eq(seasonEntries.leagueId, leagueDbId),
+            eq(seasonEntries.seasonId, seasonRow.id),
+            eq(seasonEntries.providerEntryId, manual.providerEntryId),
+          ),
+        )
+        .limit(1);
+
+      if (stored.length === 0) {
+        stale.push(seasonName);
+        break;
+      }
+    }
+  }
+
+  return stale;
+}
+
 export interface ImportFplHistoryOptions {
   seasonName?: string;
   /** When true, only rebuild reconstructed seasons (keep official league-ID imports). */
   reconstructedOnly?: boolean;
+  /** Rebuild only these reconstructed season names (implies reconstructedOnly). */
+  seasonNames?: string[];
 }
 
 export async function hasArchivedSeasons(): Promise<boolean> {
@@ -82,18 +127,16 @@ export async function purgeSummaryArchives(): Promise<number> {
   return rows.length;
 }
 
-/** Remove only chat-validated reconstructed archives (safe when new members join). */
-export async function purgeReconstructedArchives(): Promise<number> {
+/** Remove reconstructed archives for specific seasons only. */
+export async function purgeReconstructedSeasonArchives(
+  seasonNames: readonly string[],
+): Promise<number> {
+  if (seasonNames.length === 0) return 0;
+
   const league = await db.query.leagues.findFirst({
     where: eq(leagues.slug, leagueConfig.slug),
   });
   if (!league) return 0;
-
-  const bootstrap = await fetchBootstrap();
-  const currentSeason = seasonNameFromBootstrap(bootstrap.events);
-  const seasonNames = reconstructedSeasonNames(currentSeason);
-
-  if (seasonNames.length === 0) return 0;
 
   const rows = await db
     .select({ id: seasons.id })
@@ -103,7 +146,7 @@ export async function purgeReconstructedArchives(): Promise<number> {
       and(
         eq(seasonEntries.leagueId, league.id),
         eq(seasons.state, "archived-summary"),
-        inArray(seasons.name, seasonNames),
+        inArray(seasons.name, [...seasonNames]),
       ),
     )
     .groupBy(seasons.id);
@@ -120,9 +163,16 @@ export async function purgeReconstructedArchives(): Promise<number> {
   return rows.length;
 }
 
+/** Remove only chat-validated reconstructed archives (safe when new members join). */
+export async function purgeReconstructedArchives(): Promise<number> {
+  const bootstrap = await fetchBootstrap();
+  const currentSeason = seasonNameFromBootstrap(bootstrap.events);
+  return purgeReconstructedSeasonArchives(reconstructedSeasonNames(currentSeason));
+}
+
 export async function needsReconstructedHistoryRefresh(
   currentLeagueId: string,
-): Promise<{ needed: boolean; reason: string }> {
+): Promise<HistoryRefreshCheck> {
   const { members } = await fetchAllLeagueMembers(currentLeagueId);
   const currentMemberIds = new Set(members.map((member) => member.entryId));
 
@@ -146,36 +196,13 @@ export async function needsReconstructedHistoryRefresh(
     if (!seasonRow) missingArchiveSeasons.push(row.season);
   }
 
-  for (const seasonName of new Set(
-    selChampions
-      .map((row) => row.season)
-      .filter((name) => name !== currentSeason && !historyIds.has(name)),
-  )) {
-    for (const manual of manualHistoricalEntryForSeason(seasonName)) {
-      const seasonRow = await db.query.seasons.findFirst({
-        where: eq(seasons.name, seasonName),
-      });
-      if (!seasonRow) continue;
-
-      const stored = await db
-        .select({ providerEntryId: seasonEntries.providerEntryId })
-        .from(seasonEntries)
-        .where(
-          and(
-            eq(seasonEntries.leagueId, league.id),
-            eq(seasonEntries.seasonId, seasonRow.id),
-            eq(seasonEntries.providerEntryId, manual.providerEntryId),
-          ),
-        )
-        .limit(1);
-
-      if (stored.length === 0) {
-        return {
-          needed: true,
-          reason: `former member ${manual.managerName} missing from ${seasonName}`,
-        };
-      }
-    }
+  const formerMemberSeasons = await seasonsMissingFormerMembers(league.id, currentSeason);
+  if (formerMemberSeasons.length > 0) {
+    return {
+      needed: true,
+      reason: `former member data missing from ${formerMemberSeasons.join(", ")}`,
+      seasons: formerMemberSeasons,
+    };
   }
 
   const latestReconstructed = await db
@@ -230,14 +257,16 @@ export async function importFplHistory(
         ? [options.seasonName].filter((name) => historyIds.has(name))
         : [...historyIds.keys()].sort((a, b) => b.localeCompare(a));
 
-  const reconstructSeasons = options.seasonName
-    ? selChampions
-        .filter((row) => row.season === options.seasonName && !historyIds.has(row.season))
-        .map((row) => row.season)
-    : selChampions
-        .map((row) => row.season)
-        .filter((name) => name !== currentSeason && !historyIds.has(name))
-        .sort((a, b) => b.localeCompare(a));
+  const allReconstructSeasons = selChampions
+    .map((row) => row.season)
+    .filter((name) => name !== currentSeason && !historyIds.has(name))
+    .sort((a, b) => b.localeCompare(a));
+
+  const reconstructSeasons = options.seasonNames?.length
+    ? allReconstructSeasons.filter((name) => options.seasonNames!.includes(name))
+    : options.seasonName
+      ? allReconstructSeasons.filter((name) => name === options.seasonName)
+      : allReconstructSeasons;
 
   if (officialSeasons.length === 0 && reconstructSeasons.length === 0) {
     console.log("[importFplHistory] no seasons configured or available to import");
