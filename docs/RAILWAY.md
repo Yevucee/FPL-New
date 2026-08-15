@@ -23,6 +23,9 @@ Cron ticks every **15 minutes**. The job itself decides whether to call FPL:
 1. **Live season** — fetch FPL standings, GW scores, chips, transfers, manager meta
 2. **Post-deadline enrich** — captain picks + most-owned (only after GW deadline)
 3. **History bootstrap** — import past season final tables from FPL (once, then skip)
+4. **History refresh** — rebuild reconstructed archives when former members (e.g. Dominik) are missing or new managers join
+
+Each **web deploy** also runs `npm run job:ensure-history` so history data catches up even if the cron service has not ticked yet.
 
 Force a full run locally: `FPL_SYNC_FORCE=1 npm run job:automated-sync`
 
