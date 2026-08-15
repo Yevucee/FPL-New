@@ -41,9 +41,19 @@ export function LeagueDashboard({
 
       {overview.isSummaryArchive && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-          Final standings from official FPL season totals. FPL does not publish
-          gameweek-by-gameweek data for completed seasons — only seasons captured
-          during the live season support GW scrolling.
+          {overview.isReconstructedArchive ? (
+            <>
+              Reconstructed final table from current members&apos; official FPL season totals
+              (classic scoring). Validated against our recorded champions — managers who left
+              the league may be missing; use a past FPL league ID for the authoritative table.
+            </>
+          ) : (
+            <>
+              Final standings from official FPL season totals. FPL does not publish
+              gameweek-by-gameweek data for completed seasons — only seasons captured
+              during the live season support GW scrolling.
+            </>
+          )}
         </div>
       )}
 

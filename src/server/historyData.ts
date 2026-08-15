@@ -10,6 +10,7 @@ import {
   seasons,
 } from "@/db/schema";
 import { leagueHistoryProviderIds } from "@/lib/leagueHistoryConfig";
+import { RECONSTRUCTED_SEASON_PROVIDER_ID } from "@/providers/fpl/buildHistorySnapshot";
 import { seasonSlugFromName } from "@/lib/seasonNaming";
 import { leagueConfig } from "@/lib/leagueConfig";
 import { computeStandings } from "@/metrics/standings";
@@ -64,8 +65,13 @@ export async function listHistorySeasons(): Promise<HistorySeasonSummary[]> {
   const summaries: HistorySeasonSummary[] = [];
   for (const row of seasonRows) {
     if (row.state === "archived-summary") {
-      if (verifiedHistoryLeagueIds.size === 0) continue;
-      if (!row.providerId || !verifiedHistoryLeagueIds.has(row.providerId)) continue;
+      if (row.providerId === RECONSTRUCTED_SEASON_PROVIDER_ID) {
+        // validated against chat-record champions at import time
+      } else {
+        const verifiedHistoryLeagueIds = new Set(leagueHistoryProviderIds().values());
+        if (verifiedHistoryLeagueIds.size === 0) continue;
+        if (!row.providerId || !verifiedHistoryLeagueIds.has(row.providerId)) continue;
+      }
     }
 
     const summary = await buildSeasonSummary(league.id, row.id, row.name);

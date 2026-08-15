@@ -58,16 +58,10 @@ async function main(): Promise<void> {
   }
 
   const forceHistory = process.env.FPL_FORCE_HISTORY_IMPORT === "1";
-  const historyIds = leagueHistoryProviderIds();
-  const needsHistory =
-    historyIds.size > 0 && (forceHistory || !(await hasArchivedSeasons()));
+  const needsHistory = forceHistory || !(await hasArchivedSeasons());
   if (needsHistory) {
     const imported = await importFplHistory(leagueId);
     console.log(`[automated-sync] history bootstrap: ${imported} season(s)`);
-  } else if (historyIds.size === 0) {
-    console.log(
-      "[automated-sync] LEAGUE_HISTORY_PROVIDER_IDS not set — past seasons skipped",
-    );
   } else {
     console.log("[automated-sync] history archive present — skip");
   }

@@ -1,51 +1,60 @@
 # Historical season data (official FPL)
 
-Past Swiss Expert League tables are imported from **that season's private FPL league ID**.
-FPL creates a new league ID each year when the league renews — the current ID alone
-cannot reconstruct last year's league table.
+Past Swiss Expert League tables come from two sources (best first):
 
-## How it works
+## 1. Official past league IDs (authoritative)
 
-| When | What happens |
-|------|----------------|
-| `LEAGUE_PROVIDER_ID` set | Cron syncs the **current** season (`1004960` for 2026/27) |
-| `LEAGUE_HISTORY_PROVIDER_IDS` set | One-off import of **final league tables** per past season |
-| Each live gameweek | GW-by-GW data synced automatically for the active season |
-| New season starts | Previous live season auto-archived with full GW history |
-
-## Configure past seasons
-
-On Railway (web + sync-cron), add a JSON map of season name → that year's FPL league ID:
+FPL creates a **new private league ID each season**. Add each past ID:
 
 ```bash
-LEAGUE_HISTORY_PROVIDER_IDS={"2025/26":"PAST_ID_HERE"}
+LEAGUE_HISTORY_PROVIDER_IDS={"2025/26":"PAST_ID_HERE","2024/25":"..."}
 ```
 
-Find each past ID from the FPL league URL (bookmark, email, or admin):
+Find IDs from old FPL links (WhatsApp, email, bookmarks):
 
 `https://fantasy.premierleague.com/leagues/<PAST_ID>/standings/c`
 
-Then run once in sync-cron:
+Validate a candidate ID:
+
+```bash
+npx tsx scripts/validate-fpl-league-id.ts <PAST_ID> 2024/25
+```
+
+## 2. Reconstructed tables (automatic fallback)
+
+When no past league ID is configured, the app **rebuilds final tables** from current
+league members' official FPL season totals. For classic-scoring private leagues, this
+matches the real league ranking when membership was stable.
+
+Each import is **validated against `data/sel-champions.json`** (recorded from league chat).
+If the top scorer doesn't match the recorded winner, that season is skipped.
+
+Limitations:
+- Managers who **left** the league won't appear
+- Managers who **joined later** may appear with their global FPL totals even if they weren't in SEL that year
+- Use official past league IDs when you have them
+
+## Import / refresh
 
 ```bash
 FPL_FORCE_HISTORY_IMPORT=1 FPL_SYNC_FORCE=1 npm run job:automated-sync
 ```
 
-This purges incorrect summary archives and re-imports from the configured league IDs.
-
 ## Archive types
 
-1. **Full archive** — captured during the live season via automated sync (GW scrolling)
-2. **Summary archive** — final league table from that season's FPL league standings API
+| Type | Source | GW scrolling |
+|------|--------|--------------|
+| **Full archive** | Live sync during the season | Yes |
+| **Official summary** | Past FPL league ID standings | Final table only |
+| **Reconstructed summary** | Current members' FPL totals | Final table only |
 
-## What we do *not* use
+## Hall of champions
 
-Manager career history (`entry/.../history/past`) is **global FPL performance**, not your
-private league table. That approach showed wrong managers and wrong rankings — it has been removed.
+`data/sel-champions.json` — chat-record winners shown on `/history` and used to validate imports.
 
 ## URLs
 
 | Path | Purpose |
 |------|---------|
-| `/history` | List archived seasons |
-| `/history/2025-26` | Season view |
+| `/history` | Champions hall + season tables |
+| `/history/2024-25` | Season view |

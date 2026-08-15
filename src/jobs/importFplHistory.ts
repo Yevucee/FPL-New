@@ -5,7 +5,15 @@ import { leagues, seasonEntries, seasons } from "@/db/schema";
 import { importSnapshot } from "@/ingestion/importSnapshot";
 import { leagueConfig } from "@/lib/leagueConfig";
 import { leagueHistoryProviderIds } from "@/lib/leagueHistoryConfig";
-import { buildPastSeasonSnapshotFromLeagueStandings } from "@/providers/fpl/buildHistorySnapshot";
+import { championForSeason, selChampions } from "@/lib/selChampions";
+import { fetchBootstrap } from "@/providers/fpl/client";
+import {
+  buildPastSeasonSnapshotFromLeagueStandings,
+  buildPastSeasonSnapshotFromMemberCareers,
+  RECONSTRUCTED_SEASON_PROVIDER_ID,
+  seasonNameFromBootstrap,
+  snapshotMatchesChampion,
+} from "@/providers/fpl/buildHistorySnapshot";
 
 const ARCHIVED_STATES = ["archived", "archived-summary"] as const;
 
@@ -30,7 +38,7 @@ export async function hasArchivedSeasons(): Promise<boolean> {
   return row.length > 0;
 }
 
-/** Remove summary archives (wrong career-history imports) before a forced re-import. */
+/** Remove summary archives before a forced re-import. */
 export async function purgeSummaryArchives(): Promise<number> {
   const league = await db.query.leagues.findFirst({
     where: eq(leagues.slug, leagueConfig.slug),
@@ -59,22 +67,33 @@ export async function purgeSummaryArchives(): Promise<number> {
 }
 
 /**
- * Import completed seasons from each season's private FPL league ID.
- * Set LEAGUE_HISTORY_PROVIDER_IDS on Railway — see docs/HISTORICAL_DATA.md.
+ * Import completed seasons:
+ * 1. Official — each season's FPL league ID (`LEAGUE_HISTORY_PROVIDER_IDS`)
+ * 2. Reconstructed — current members ranked by FPL season totals, validated against champions list
  */
 export async function importFplHistory(
-  _currentLeagueId: string,
+  currentLeagueId: string,
   options: { seasonName?: string } = {},
 ): Promise<number> {
   const historyIds = leagueHistoryProviderIds();
-  const seasonNames = options.seasonName
-    ? [options.seasonName]
+  const bootstrap = await fetchBootstrap();
+  const currentSeason = seasonNameFromBootstrap(bootstrap.events);
+
+  const officialSeasons = options.seasonName
+    ? [options.seasonName].filter((name) => historyIds.has(name))
     : [...historyIds.keys()].sort((a, b) => b.localeCompare(a));
 
-  if (seasonNames.length === 0) {
-    console.log(
-      "[importFplHistory] LEAGUE_HISTORY_PROVIDER_IDS not set — skipping past-season import",
-    );
+  const reconstructSeasons = options.seasonName
+    ? selChampions
+        .filter((row) => row.season === options.seasonName)
+        .map((row) => row.season)
+    : selChampions
+        .map((row) => row.season)
+        .filter((name) => name !== currentSeason && !historyIds.has(name))
+        .sort((a, b) => b.localeCompare(a));
+
+  if (officialSeasons.length === 0 && reconstructSeasons.length === 0) {
+    console.log("[importFplHistory] no seasons configured or available to import");
     return 0;
   }
 
@@ -84,7 +103,8 @@ export async function importFplHistory(
   }
 
   let imported = 0;
-  for (const seasonName of seasonNames) {
+
+  for (const seasonName of officialSeasons) {
     const historicalLeagueId = historyIds.get(seasonName);
     if (!historicalLeagueId) continue;
 
@@ -92,6 +112,13 @@ export async function importFplHistory(
       historicalLeagueId,
       seasonName,
     );
+    const champion = championForSeason(seasonName);
+    if (champion && !snapshotMatchesChampion(snapshot, champion.winner)) {
+      console.warn(
+        `[importFplHistory] ${seasonName} league ${historicalLeagueId} leader does not match recorded champion ${champion.winner} — importing anyway`,
+      );
+    }
+
     await importSnapshot(
       {
         name: "fpl-history",
@@ -101,9 +128,46 @@ export async function importFplHistory(
     );
     imported += 1;
     console.log(
-      `[importFplHistory] ${seasonName} from league ${historicalLeagueId}: ${snapshot.entries.length} managers`,
+      `[importFplHistory] ${seasonName} official league ${historicalLeagueId}: ${snapshot.entries.length} managers`,
     );
+  }
+
+  for (const seasonName of reconstructSeasons) {
+    const champion = championForSeason(seasonName);
+    if (!champion) continue;
+
+    try {
+      const snapshot = await buildPastSeasonSnapshotFromMemberCareers(
+        currentLeagueId,
+        seasonName,
+      );
+      if (!snapshotMatchesChampion(snapshot, champion.winner)) {
+        console.warn(
+          `[importFplHistory] skip ${seasonName} reconstruction — leader does not match ${champion.winner}`,
+        );
+        continue;
+      }
+
+      await importSnapshot(
+        {
+          name: "fpl-history",
+          getLeagueSnapshot: async () => snapshot,
+        },
+        { mode: "history" },
+      );
+      imported += 1;
+      console.log(
+        `[importFplHistory] ${seasonName} reconstructed: ${snapshot.entries.length} managers (validated vs ${champion.winner})`,
+      );
+    } catch (err) {
+      console.warn(
+        `[importFplHistory] skip ${seasonName} reconstruction:`,
+        err instanceof Error ? err.message : String(err),
+      );
+    }
   }
 
   return imported;
 }
+
+export { RECONSTRUCTED_SEASON_PROVIDER_ID };

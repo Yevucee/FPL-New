@@ -2,11 +2,13 @@ import type { LeagueSnapshot } from "@/contracts/snapshot";
 import { leagueConfig } from "@/lib/leagueConfig";
 
 import {
+  fetchAllLeagueMembers,
   fetchAllLeagueStandings,
   fetchEntryHistory,
   sleep,
   type FplEntryHistory,
 } from "./client";
+import { managerMatchesChampion } from "@/lib/selChampions";
 import { managerMetaFromHistory } from "./managerMeta";
 import { seasonNameFromBootstrap } from "./buildSnapshot";
 
@@ -39,6 +41,110 @@ function assertSwissExpertLeague(leagueName: string, leagueId: string): void {
       `League ${leagueId} is "${leagueName}" — expected a Swiss Expert League archive`,
     );
   }
+}
+
+export const RECONSTRUCTED_SEASON_PROVIDER_ID = "reconstructed";
+
+/**
+ * Rebuild a season table from current league members' official FPL season totals.
+ * Valid for classic-scoring private leagues when membership was stable.
+ * Validated against the chat-record champions list before import.
+ */
+export async function buildPastSeasonSnapshotFromMemberCareers(
+  currentLeagueId: string,
+  seasonName: string,
+  finalEvent = DEFAULT_FINAL_EVENT,
+): Promise<LeagueSnapshot> {
+  const { league, members } = await fetchAllLeagueMembers(currentLeagueId);
+  const entries: LeagueSnapshot["entries"] = [];
+
+  for (const [index, member] of members.entries()) {
+    if (index > 0) await sleep(120);
+    const history = await fetchEntryHistory(member.entryId);
+    const past = pastSeasonRecord(history, seasonName);
+    if (!past) continue;
+    const meta = managerMetaFromHistory(history, seasonName);
+
+    entries.push({
+      providerEntryId: member.entryId,
+      managerName: member.managerName,
+      teamName: member.teamName,
+      joinEvent: 1,
+      overallFplRank: past.overallRank,
+      careerBestSeason: meta.careerBestSeason,
+      careerBestPoints: meta.careerBestPoints,
+      seasonTransfers: 0,
+      results: [
+        {
+          eventNumber: finalEvent,
+          netPoints: past.totalPoints,
+          grossPoints: past.totalPoints,
+          transferCost: 0,
+          totalPoints: past.totalPoints,
+          benchPoints: 0,
+          chip: null,
+        },
+      ],
+    });
+  }
+
+  if (entries.length === 0) {
+    throw new Error(`No FPL season totals for ${seasonName} among current league members`);
+  }
+
+  return {
+    provider: "fpl-public",
+    season: {
+      name: seasonName,
+      providerId: RECONSTRUCTED_SEASON_PROVIDER_ID,
+      startEvent: 1,
+    },
+    league: {
+      slug: leagueConfig.slug,
+      name: leagueConfig.displayName || league.name,
+      providerId: String(league.id),
+      visibility: leagueConfig.visibility,
+      timezone: leagueConfig.scoringTimezone,
+    },
+    events: Array.from({ length: finalEvent }, (_, index) => ({
+      eventNumber: index + 1,
+      deadline: null,
+      phase: 1,
+      phaseName: null,
+      finished: true,
+      checked: true,
+    })),
+    entries,
+  };
+}
+
+export function snapshotSeasonLeader(snapshot: LeagueSnapshot): {
+  managerName: string;
+  teamName: string;
+  totalPoints: number;
+} | null {
+  let leader: { managerName: string; teamName: string; totalPoints: number } | null = null;
+  for (const entry of snapshot.entries) {
+    const final = entry.results.at(-1);
+    if (!final) continue;
+    if (!leader || final.netPoints > leader.totalPoints) {
+      leader = {
+        managerName: entry.managerName,
+        teamName: entry.teamName,
+        totalPoints: final.netPoints,
+      };
+    }
+  }
+  return leader;
+}
+
+export function snapshotMatchesChampion(
+  snapshot: LeagueSnapshot,
+  expectedWinner: string,
+): boolean {
+  const leader = snapshotSeasonLeader(snapshot);
+  if (!leader) return false;
+  return managerMatchesChampion(leader.managerName, expectedWinner);
 }
 
 /**

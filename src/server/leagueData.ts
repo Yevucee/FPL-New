@@ -15,6 +15,7 @@ import type { MostOwnedPlayer } from "@/providers/fpl/mostOwned";
 import { seasonNameFromSlug } from "@/lib/seasonNaming";
 import { leagueConfig } from "@/lib/leagueConfig";
 import { leagueHistoryProviderIds } from "@/lib/leagueHistoryConfig";
+import { RECONSTRUCTED_SEASON_PROVIDER_ID } from "@/providers/fpl/buildHistorySnapshot";
 import { buildSelectableEvents, findLiveGameweek } from "@/lib/liveGameweek";
 import { gameweekWinner, monthlyWinner } from "@/metrics/awards";
 import { computeLeagueInsights, type LeagueInsights } from "@/metrics/insights";
@@ -59,6 +60,7 @@ export interface LeagueOverview {
   dataMode: "preseason" | "live" | "archived" | "empty";
   seasonState: string | null;
   isSummaryArchive: boolean;
+  isReconstructedArchive: boolean;
 }
 
 export interface LeagueOverviewOptions {
@@ -112,6 +114,7 @@ export async function getLeagueOverview(
     dataMode: "empty",
     seasonState: null,
     isSummaryArchive: false,
+    isReconstructedArchive: false,
   };
 
   if (!league) return empty;
@@ -153,6 +156,7 @@ export async function getLeagueOverview(
       seasonName: season.name,
       seasonState: season.state,
       isSummaryArchive: season.state === "archived-summary",
+      isReconstructedArchive: season.providerId === RECONSTRUCTED_SEASON_PROVIDER_ID,
       dataMode: season.state === "archived-summary" || season.state === "archived" ? "archived" : "preseason",
     };
   }
@@ -347,6 +351,7 @@ export async function getLeagueOverview(
     seasonName: season.name,
     seasonState: season.state,
     isSummaryArchive: season.state === "archived-summary",
+    isReconstructedArchive: season.providerId === RECONSTRUCTED_SEASON_PROVIDER_ID,
     registeredManagers: entries.length,
     latestFinishedEvent,
     liveEvent,
@@ -435,8 +440,12 @@ async function resolveSeason(
   return fallback[0]?.season ?? null;
 }
 
-function isVerifiedSummaryArchive(season: { state: string; providerId: string | null }): boolean {
+function isVerifiedSummaryArchive(season: {
+  state: string;
+  providerId: string | null;
+}): boolean {
   if (season.state !== "archived-summary") return true;
+  if (season.providerId === RECONSTRUCTED_SEASON_PROVIDER_ID) return true;
   const verifiedIds = new Set(leagueHistoryProviderIds().values());
   if (verifiedIds.size === 0) return false;
   return season.providerId !== null && verifiedIds.has(season.providerId);
