@@ -19,7 +19,7 @@ extraction. This app therefore:
 
 - Uses a `FantasyDataProvider` abstraction
 - Defaults to `fixtures` (sample data) for development
-- Uses `manual` mode in production: you run `npm run fetch:fpl` after each gameweek
+- Production: Railway cron runs `job:automated-sync` every 6 hours (no manual steps)
 - Never stores FPL credentials or submits team changes
 
 ## Quick start (development)
@@ -31,22 +31,13 @@ bash scripts/start.sh     # ensure Postgres is up
 open http://localhost:3000/league
 ```
 
-## Live season workflow (once you have the FPL league ID)
+## Production workflow
 
-1. Copy `.env.example` → `.env`
-2. Set `LEAGUE_PROVIDER_ID` from your FPL league URL:
-   `https://fantasy.premierleague.com/leagues/<ID>/standings/c`
-3. Set `FANTASY_PROVIDER_MODE=manual`
-4. After each gameweek deadline (when FPL updates scores):
+1. Deploy to Railway (see [docs/RAILWAY.md](docs/RAILWAY.md))
+2. Set `LEAGUE_PROVIDER_ID` on **web** and **sync-cron** when the FPL league renews
+3. Done — cron syncs live standings, history, and post-deadline stats automatically
 
-```bash
-npm run sync:fpl
-# or: npm run fetch:fpl && FANTASY_PROVIDER_MODE=manual npm run job:sync-current
-```
-
-5. Share the deployed URL with the league
-
-## Railway deploy
+## Local development
 
 **Full step-by-step guide:** [docs/RAILWAY.md](docs/RAILWAY.md)
 
@@ -86,8 +77,8 @@ Ideas queued for a future release:
 | Command | Description |
 |---|---|
 | `npm run dev` | Dev server |
-| `npm run fetch:fpl` | Pull public FPL league → `data/league-snapshot.json` |
-| `npm run sync:fpl` | Fetch + import into Postgres |
+| `npm run job:automated-sync` | Full pipeline: live sync + enrich + history bootstrap |
+| `npm run sync:fpl` | Alias for `job:automated-sync` |
 | `npm run import:fpl-history` | Import completed seasons from official FPL entry history |
 | `npm run enrich:fpl` | Post-deadline squad intel (captain + most owned) |
 | `npm run job:sync-current` | Import active provider snapshot |

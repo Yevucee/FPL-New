@@ -18,6 +18,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/db/migrate.ts",
     "job:sync-current": "tsx src/jobs/sync-current.ts",
+    "job:automated-sync": "tsx src/jobs/automated-sync.ts",
     "fetch:fpl": "tsx scripts/fetch-fpl-league.ts",
     "sync:fpl": "bash scripts/sync-from-fpl.sh",
     "import:fpl-history": "tsx scripts/import-fpl-history.ts",

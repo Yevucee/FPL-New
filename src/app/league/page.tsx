@@ -21,9 +21,9 @@ export default async function LeaguePage({ searchParams }: PageProps) {
       <div className="rounded-lg border border-amber-300 bg-amber-50 p-6">
         <h1 className="text-xl font-semibold">League not set up yet</h1>
         <p className="mt-2 text-sm text-slate-600">
-          Run{" "}
-          <code className="rounded bg-slate-100 px-1">bash scripts/sync-from-fpl.sh</code>{" "}
-          once your FPL league ID is configured in <code>.env</code>.
+          Waiting for the Swiss Expert League FPL ID to be configured. Once
+          <code className="mx-1 rounded bg-slate-100 px-1">LEAGUE_PROVIDER_ID</code>{" "}
+          is set on Railway, standings refresh automatically every few hours.
         </p>
       </div>
     );
@@ -41,9 +41,7 @@ export default async function LeaguePage({ searchParams }: PageProps) {
             {overview.nextEvent ? ` (GW${overview.nextEvent})` : ""} completes.
           </p>
           <p className="mt-3 text-xs text-slate-500">
-            Tip: after each deadline, run{" "}
-            <code className="rounded bg-white px-1">bash scripts/sync-from-fpl.sh</code>{" "}
-            to refresh from FPL.
+            Data syncs from FPL automatically — no action needed from you.
           </p>
           <p className="mt-3 text-xs text-slate-500">
             Past seasons are in the{" "}

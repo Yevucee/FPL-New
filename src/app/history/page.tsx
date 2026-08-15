@@ -22,19 +22,16 @@ export default async function HistoryIndexPage() {
         <div className="rounded-lg border border-slate-200 bg-slate-50 p-6">
           <h2 className="text-lg font-semibold text-slate-800">No archived seasons yet</h2>
           <p className="mt-2 text-sm text-slate-600">
-            Once your FPL league ID is set, run{" "}
-            <code className="rounded bg-white px-1">npm run import:fpl-history</code>{" "}
-            to pull completed seasons from official FPL entry history. The current
-            live season is on the{" "}
+            Past seasons are imported automatically from official FPL data once
+            your league ID is configured. The first sync usually takes a few hours.
+            The current live season is on the{" "}
             <Link href="/league" className="font-medium text-swiss-700 hover:underline">
               Standings
             </Link>{" "}
             page.
           </p>
           <p className="mt-3 text-xs text-slate-500">
-            Tip: run <code className="rounded bg-white px-1">npm run sync:fpl</code>{" "}
-            each gameweek during the season so we archive full GW data automatically
-            when the next season starts.
+            Full gameweek history is preserved automatically during each live season.
           </p>
         </div>
       ) : (

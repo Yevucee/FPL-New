@@ -1,72 +1,41 @@
 # Historical season data (official FPL)
 
-Past seasons are loaded from **official FPL public API** endpoints — not from
-legacy databases.
+Past seasons are loaded automatically from **official FPL public API** data.
+No manual import is required in production.
 
-## What FPL provides
+## How it works
 
-| Source | Data available |
-|--------|----------------|
-| `entry/{id}/history/` → `current` | Gameweek-by-gameweek for the **active** season |
-| `entry/{id}/history/` → `past` | **Season-end totals only** for completed seasons |
-| `leagues-classic/{id}/standings/` | Current season league table only |
+| When | What happens |
+|------|----------------|
+| `LEAGUE_PROVIDER_ID` set on Railway | Cron runs `job:automated-sync` every 6 hours |
+| First sync | Imports completed seasons from FPL `history.past` (final tables) |
+| Each gameweek | Live GW data synced automatically |
+| After GW deadline | Captain + most-owned enriched from picks API |
+| New season starts | Previous live season auto-archived with full GW history |
 
-FPL does **not** publish gameweek-by-gameweek league standings for seasons that
-have already finished. After rollover, only season totals remain in `past`.
+## Archive types
 
-## Two archive modes
+1. **Full archive** — captured during the live season via automated sync
+2. **Summary archive** — season-end totals from FPL `past` (completed seasons)
 
-1. **Full archive** (`state = archived`) — captured via `npm run sync:fpl` during
-   the live season. Supports GW picker, awards, and storylines.
-2. **Summary archive** (`state = archived-summary`) — imported from FPL `past`
-   totals via `npm run import:fpl-history`. Final standings only.
+## FPL API limits
 
-When a new season sync runs, the previous active season is auto-archived with
-full GW data (if you synced through the season).
-
-## Import completed seasons from FPL
-
-Requires `LEAGUE_PROVIDER_ID` in `.env` / Railway.
-
-```bash
-# All completed seasons for current league members
-npm run import:fpl-history
-
-# One season
-FPL_HISTORY_SEASON=2025/26 npm run import:fpl-history
-```
-
-On Railway (web service shell):
-
-```bash
-npm run import:fpl-history
-```
-
-Browse at `/history`.
-
-## Live season capture (recommended going forward)
-
-After each gameweek:
-
-```bash
-npm run sync:fpl
-```
-
-This stores official FPL gameweek data in Postgres. When the next FPL season
-starts and you sync again, the finished season is archived automatically with
-full GW history.
+FPL does not expose gameweek-by-gameweek data for seasons that have already
+finished. Only seasons synced during the live year support GW scrolling.
 
 ## URLs
 
 | Path | Purpose |
 |------|---------|
 | `/history` | List archived seasons |
-| `/history/2025-26` | Season view (GW picker if full archive) |
-| `/history/2025-26?gw=12` | Standings through GW12 (full archive only) |
+| `/history/2025-26` | Season view |
 
-## Limitations
+## Force re-import (optional)
 
-- Past-season GW scrolling is only possible for seasons synced during the live year.
-- FPL `past` imports use current league membership; managers who left the league
-  are not included.
-- Team names in summary imports reflect current FPL team names, not historical names.
+Only needed if history is missing after automation:
+
+```bash
+FPL_FORCE_HISTORY_IMPORT=1 npm run job:automated-sync
+```
+
+Run in Railway sync-cron shell — not required for normal operation.

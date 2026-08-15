@@ -5,7 +5,7 @@ builder = "RAILPACK"
 buildCommand = "npm ci"
 
 [deploy]
-startCommand = "npm run sync:fpl"
-# Every 6 hours — catches post-deadline FPL updates. Tune in Railway dashboard.
+startCommand = "npm run job:automated-sync"
+# Every 6 hours — live sync, post-deadline enrich, one-time history bootstrap.
 cronSchedule = "0 */6 * * *"
 restartPolicyType = "NEVER"
