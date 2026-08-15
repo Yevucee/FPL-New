@@ -48,10 +48,25 @@ npm run sync:fpl
 
 ## Railway deploy
 
-1. Create a Railway project with **PostgreSQL** + **Web** service from this repo
-2. Set environment variables from `.env.example` (use Railway's `DATABASE_URL`)
-3. `railway.toml` runs migrations on deploy and health-checks `/ready`
-4. Optional: add a **Cron** service running `FANTASY_PROVIDER_MODE=manual npm run sync:fpl` weekly
+**Full step-by-step guide:** [docs/RAILWAY.md](docs/RAILWAY.md)
+
+Quick summary:
+
+1. [railway.app/new](https://railway.app/new) → deploy `FPL-New` from GitHub
+2. Add **PostgreSQL** database to the project
+3. Web service variables: `DATABASE_URL` (reference Postgres), `FANTASY_PROVIDER_MODE=manual`, league config from `.env.example`
+4. Generate a **public domain** under Networking
+5. Add a second **sync-cron** service with config file `railway.cron.toml` (auto FPL refresh every 6 hours)
+
+## Planned stats (next slice)
+
+Ideas queued for a future release:
+
+- **Longest unbeaten run** — consecutive GWs above league average
+- **Closest race to leader** — smallest gap to top spot
+- **Captaincy king** — best captain picks (needs captain data from FPL)
+- **Monthly wooden spoon** — lowest monthly phase total
+- **Head-to-head record** — mini-league style pairwise results
 
 ## Useful endpoints
 

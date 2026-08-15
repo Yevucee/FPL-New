@@ -1,0 +1,11 @@
+# Cron service config — create a second Railway service from the same repo
+# and set Config File Path to `railway.cron.toml` in service settings.
+[build]
+builder = "RAILPACK"
+buildCommand = "npm ci"
+
+[deploy]
+startCommand = "npm run sync:fpl"
+# Every 6 hours — catches post-deadline FPL updates. Tune in Railway dashboard.
+cronSchedule = "0 */6 * * *"
+restartPolicyType = "NEVER"
