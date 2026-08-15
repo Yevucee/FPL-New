@@ -8,13 +8,7 @@ import { shouldRunAutomatedSync } from "@/lib/syncSchedule";
 import { enrichLeagueIntel } from "@/providers/fpl/enrichIntel";
 import { buildSnapshotFromFpl } from "@/providers/fpl/buildSnapshot";
 
-import {
-  hasArchivedSeasons,
-  importFplHistory,
-  needsReconstructedHistoryRefresh,
-  purgeReconstructedArchives,
-  purgeSummaryArchives,
-} from "./importFplHistory";
+import { ensureHistoryFresh } from "./ensureHistoryFresh";
 
 /**
  * Fully automated FPL pipeline for Railway cron — no manual steps.
@@ -63,26 +57,13 @@ async function main(): Promise<void> {
     );
   }
 
-  const forceHistory = process.env.FPL_FORCE_HISTORY_IMPORT === "1";
-  const refreshCheck = await needsReconstructedHistoryRefresh(leagueId);
-  const hasHistory = await hasArchivedSeasons();
-
-  if (forceHistory) {
-    const purged = await purgeSummaryArchives();
-    console.log(`[automated-sync] history purge (full): ${purged} season(s)`);
-    const imported = await importFplHistory(leagueId);
-    console.log(`[automated-sync] history bootstrap: ${imported} season(s)`);
-  } else if (!hasHistory) {
-    const imported = await importFplHistory(leagueId);
-    console.log(`[automated-sync] history bootstrap: ${imported} season(s)`);
-  } else if (refreshCheck.needed) {
-    console.log(`[automated-sync] history refresh: ${refreshCheck.reason}`);
-    const purged = await purgeReconstructedArchives();
-    console.log(`[automated-sync] history purge (reconstructed): ${purged} season(s)`);
-    const imported = await importFplHistory(leagueId, { reconstructedOnly: true });
-    console.log(`[automated-sync] history rebuilt: ${imported} season(s)`);
+  const history = await ensureHistoryFresh(leagueId);
+  if (history.action === "skipped") {
+    console.log(`[automated-sync] history archive up to date — ${history.reason}`);
   } else {
-    console.log("[automated-sync] history archive up to date — skip");
+    console.log(
+      `[automated-sync] history ${history.action}: ${history.reason} (purged=${history.purged}, imported=${history.imported})`,
+    );
   }
 
   console.log("[automated-sync] done");

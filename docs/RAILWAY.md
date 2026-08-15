@@ -7,7 +7,7 @@ to run sync commands manually.
 
 | Service | Config | What it does |
 |---------|--------|--------------|
-| **Web** | `railway.toml` | Next.js app — standings, history, API |
+| **Web** | `railway.toml` | Next.js app — standings, history, API; **preDeploy** runs `job:ensure-history` |
 | **Sync cron** | `railway.cron.toml` | `job:automated-sync` every 15 min (gated) |
 
 ### Automated sync pipeline (`job:automated-sync`)

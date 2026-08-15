@@ -20,6 +20,13 @@ import { reconstructedHistoryStale } from "./historyRefresh";
 
 const ARCHIVED_STATES = ["archived", "archived-summary"] as const;
 
+function reconstructedSeasonNames(currentSeason: string): string[] {
+  const historyIds = leagueHistoryProviderIds();
+  return selChampions
+    .map((row) => row.season)
+    .filter((name) => name !== currentSeason && !historyIds.has(name));
+}
+
 export interface ImportFplHistoryOptions {
   seasonName?: string;
   /** When true, only rebuild reconstructed seasons (keep official league-ID imports). */
@@ -82,6 +89,12 @@ export async function purgeReconstructedArchives(): Promise<number> {
   });
   if (!league) return 0;
 
+  const bootstrap = await fetchBootstrap();
+  const currentSeason = seasonNameFromBootstrap(bootstrap.events);
+  const seasonNames = reconstructedSeasonNames(currentSeason);
+
+  if (seasonNames.length === 0) return 0;
+
   const rows = await db
     .select({ id: seasons.id })
     .from(seasons)
@@ -90,7 +103,7 @@ export async function purgeReconstructedArchives(): Promise<number> {
       and(
         eq(seasonEntries.leagueId, league.id),
         eq(seasons.state, "archived-summary"),
-        eq(seasons.providerId, RECONSTRUCTED_SEASON_PROVIDER_ID),
+        inArray(seasons.name, seasonNames),
       ),
     )
     .groupBy(seasons.id);
