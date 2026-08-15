@@ -60,25 +60,51 @@ Railway auto-deploys on push. The web service will:
 3. Start: `npm run start`
 4. Health check: `/ready`
 
-## Step 4 — First data import (once you have league ID)
+## Step 4 — League ID from GitHub secrets
 
-After `LEAGUE_PROVIDER_ID` is set, run a one-off sync from your machine **or** trigger the cron service manually:
+The FPL classic league ID is stored as **`FPL_LEAGUE_ID`** in the
+[`Swiss-Expert-League`](https://github.com/Yevucee/Swiss-Expert-League) repo secrets.
+GitHub never exposes secret **values** via API or CLI — only Actions can use them at runtime.
+
+### Option A — GitHub Actions sync (recommended)
+
+1. On **`Yevucee/FPL-New`** → **Settings → Secrets and variables → Actions**, add:
+
+   | Secret | Value |
+   |--------|-------|
+   | `FPL_LEAGUE_ID` | Same numeric ID as in Swiss-Expert-League (re-paste from FPL league URL if needed) |
+   | `DATABASE_URL` | Railway Postgres **private** URL (`${{Postgres.DATABASE_URL}}` value from Railway dashboard) |
+
+2. Merge the branch with `.github/workflows/railway-fpl-sync.yml`.
+
+3. **Actions → Sync FPL → Railway → Run workflow** (manual dispatch).
+
+4. Set Railway service variables to match (so the web app and cron use the same ID):
+
+   ```
+   LEAGUE_PROVIDER_ID=<same as FPL_LEAGUE_ID>
+   FANTASY_PROVIDER_MODE=manual
+   ```
+
+   On both **FPL-New** (web) and **sync-cron** services.
+
+### Option B — One-off sync from your machine
 
 ```bash
-# Local (with Railway DATABASE_URL from dashboard → Connect → Public URL)
+# Get DATABASE_URL from Railway → Postgres → Connect → Private URL
 export DATABASE_URL="postgresql://..."
-export LEAGUE_PROVIDER_ID="your_id"
+export LEAGUE_PROVIDER_ID="<from FPL URL or GitHub secret>"
 export FANTASY_PROVIDER_MODE=manual
 npm run sync:fpl
 ```
 
-Or use Railway CLI:
+### Finding the ID again
 
-```bash
-npx railway login
-npx railway link          # select project + web service
-npx railway run npm run sync:fpl
-```
+Open the league in FPL while logged in:
+
+`https://fantasy.premierleague.com/leagues/<ID>/standings/c`
+
+Classic league IDs are usually stable year-to-year for the same league.
 
 ## Step 5 — Add cron sync service
 
@@ -97,8 +123,6 @@ Tune the schedule during the season (e.g. `0 8,14,22 * * 5,6,0` for Fri–Sun ev
 Post the generated Railway URL in your Swiss Expert League chat. Members can bookmark `/league`.
 
 ## Troubleshooting
-
-| Issue | Fix |
 |-------|-----|
 | Deploy fails on migrate | Check `DATABASE_URL` reference is set on Web service |
 | `/ready` returns 503 | Postgres not linked or migrations failed — check deploy logs |
