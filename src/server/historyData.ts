@@ -20,6 +20,13 @@ import { getLeagueOverview, type LeagueOverview } from "./leagueData";
 
 const ARCHIVED_STATES = ["archived", "archived-summary"] as const;
 
+export interface HistoryPodiumEntry {
+  place: number;
+  managerName: string;
+  teamName: string;
+  totalPoints: number;
+}
+
 export interface HistorySeasonSummary {
   name: string;
   slug: string;
@@ -31,6 +38,7 @@ export interface HistorySeasonSummary {
     totalPoints: number;
     overallFplRank: number | null;
   } | null;
+  podium: HistoryPodiumEntry[];
 }
 
 /**
@@ -128,6 +136,7 @@ async function buildSeasonSummary(
         : null;
 
   let champion: HistorySeasonSummary["champion"] = null;
+  let podium: HistorySeasonSummary["podium"] = [];
   if (finalGw !== null && entryRows.length > 0) {
     const phaseByEvent = new Map(
       eventRows.map((ev) => [ev.eventNumber, ev.phase]),
@@ -163,6 +172,12 @@ async function buildSeasonSummary(
       chip: r.chip,
     }));
     const standings = computeStandings(entries, results, finalGw);
+    podium = standings.slice(0, 3).map((row, index) => ({
+      place: index + 1,
+      managerName: row.managerName,
+      teamName: row.teamName,
+      totalPoints: row.totalNetPoints,
+    }));
     const winner = standings[0];
     if (winner) {
       const winnerMeta = entryRows.find((e) => e.entryId === winner.entryId);
@@ -181,5 +196,6 @@ async function buildSeasonSummary(
     managerCount: entryRows.length,
     finalGameweek: finalGw,
     champion,
+    podium,
   };
 }
