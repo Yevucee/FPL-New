@@ -6,6 +6,7 @@ import { importSnapshot } from "@/ingestion/importSnapshot";
 import { leagueConfig } from "@/lib/leagueConfig";
 import { leagueHistoryProviderIds } from "@/lib/leagueHistoryConfig";
 import { championForSeason, selChampions } from "@/lib/selChampions";
+import { manualHistoricalEntryForSeason } from "@/lib/selHistoricalMembers";
 import { fetchAllLeagueMembers, fetchBootstrap } from "@/providers/fpl/client";
 import {
   buildPastSeasonSnapshotFromLeagueStandings,
