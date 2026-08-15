@@ -4,10 +4,32 @@ export interface SelChampionRecord {
   season: string;
   winner: string;
   team?: string;
-  note: string;
+}
+
+export interface HallOfChampionRow {
+  season: string;
+  winner: string;
+  teamName: string | null;
 }
 
 export const selChampions: SelChampionRecord[] = champions;
+
+/** Merge chat-record winners with team names from imported season archives. */
+export function hallOfChampions(
+  archiveBySeason: ReadonlyMap<
+    string,
+    { managerName: string; teamName: string } | null | undefined
+  >,
+): HallOfChampionRow[] {
+  return selChampions.map((row) => {
+    const archived = archiveBySeason.get(row.season);
+    return {
+      season: row.season,
+      winner: archived?.managerName ?? row.winner,
+      teamName: archived?.teamName ?? row.team ?? null,
+    };
+  });
+}
 
 /** Match chat-record first names / partial names to FPL manager display names. */
 export function managerMatchesChampion(managerName: string, champion: string): boolean {

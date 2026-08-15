@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { selChampions, titleCounts } from "@/lib/selChampions";
+import { hallOfChampions, titleCounts } from "@/lib/selChampions";
 import { listHistorySeasons } from "@/server/historyData";
 
 export const dynamic = "force-dynamic";
@@ -8,6 +8,10 @@ export const dynamic = "force-dynamic";
 export default async function HistoryIndexPage() {
   const seasons = await listHistorySeasons();
   const titles = titleCounts();
+  const archiveBySeason = new Map(
+    seasons.map((season) => [season.name, season.champion]),
+  );
+  const champions = hallOfChampions(archiveBySeason);
 
   return (
     <div className="space-y-8">
@@ -22,27 +26,21 @@ export default async function HistoryIndexPage() {
 
       <section className="rounded-lg border border-slate-200 bg-white p-5">
         <h2 className="text-lg font-semibold">Hall of champions</h2>
-        <p className="mt-1 text-sm text-slate-500">
-          Recorded from league chat — used to validate reconstructed tables.
-        </p>
         <div className="mt-4 overflow-x-auto">
-          <table className="w-full min-w-[520px] text-left text-sm">
+          <table className="w-full min-w-[420px] text-left text-sm">
             <thead className="text-xs uppercase tracking-wide text-slate-500">
               <tr>
                 <th className="px-2 py-2">Season</th>
-                <th className="px-2 py-2">Winner</th>
-                <th className="px-2 py-2">Note</th>
+                <th className="px-2 py-2">Manager</th>
+                <th className="px-2 py-2">Team</th>
               </tr>
             </thead>
             <tbody>
-              {[...selChampions].reverse().map((row) => (
+              {[...champions].reverse().map((row) => (
                 <tr key={row.season} className="border-t border-slate-100">
                   <td className="px-2 py-2 font-medium">{row.season}</td>
-                  <td className="px-2 py-2">
-                    {row.winner}
-                    {row.team ? ` (${row.team})` : ""}
-                  </td>
-                  <td className="px-2 py-2 text-slate-600">{row.note}</td>
+                  <td className="px-2 py-2">{row.winner}</td>
+                  <td className="px-2 py-2 text-slate-700">{row.teamName ?? "—"}</td>
                 </tr>
               ))}
             </tbody>

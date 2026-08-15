@@ -53,7 +53,8 @@ FPL_FORCE_HISTORY_IMPORT=1 FPL_SYNC_FORCE=1 npm run job:automated-sync
 
 ## Hall of champions
 
-`data/sel-champions.json` — chat-record winners shown on `/history` and used to validate imports.
+`data/sel-champions.json` — season winners (manager first names). Team names are filled
+from imported FPL season archives on `/history`.
 
 ## URLs
 
