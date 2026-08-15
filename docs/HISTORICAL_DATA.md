@@ -34,6 +34,9 @@ Limitations:
 - Managers who **joined later** may appear with their global FPL totals even if they weren't in SEL that year
 - Use official past league IDs when you have them
 
+When **new players join** the current league, reconstructed archives refresh automatically
+on the next cron sync (member count / roster change detected).
+
 ## Import / refresh
 
 ```bash
