@@ -1,0 +1,92 @@
+[
+  {
+    "gw": 1,
+    "entry_id": 1001,
+    "manager_name": "Alex",
+    "team_name": "Alpine FC",
+    "total_points": 72,
+    "gw_points": 72,
+    "active_chip": null,
+    "transfer_cost": 0
+  },
+  {
+    "gw": 2,
+    "entry_id": 1001,
+    "manager_name": "Alex",
+    "team_name": "Alpine FC",
+    "total_points": 138,
+    "gw_points": 66,
+    "active_chip": null,
+    "transfer_cost": 0
+  },
+  {
+    "gw": 3,
+    "entry_id": 1001,
+    "manager_name": "Alex",
+    "team_name": "Alpine FC",
+    "total_points": 201,
+    "gw_points": 63,
+    "active_chip": "3xc",
+    "transfer_cost": 0
+  },
+  {
+    "gw": 1,
+    "entry_id": 1002,
+    "manager_name": "Bea",
+    "team_name": "Bern United",
+    "total_points": 68,
+    "gw_points": 68,
+    "active_chip": null,
+    "transfer_cost": 0
+  },
+  {
+    "gw": 2,
+    "entry_id": 1002,
+    "manager_name": "Bea",
+    "team_name": "Bern United",
+    "total_points": 125,
+    "gw_points": 57,
+    "active_chip": null,
+    "transfer_cost": 4
+  },
+  {
+    "gw": 3,
+    "entry_id": 1002,
+    "manager_name": "Bea",
+    "team_name": "Bern United",
+    "total_points": 198,
+    "gw_points": 73,
+    "active_chip": null,
+    "transfer_cost": 0
+  },
+  {
+    "gw": 1,
+    "entry_id": 1003,
+    "manager_name": "Chris",
+    "team_name": "Zurich City",
+    "total_points": 65,
+    "gw_points": 65,
+    "active_chip": null,
+    "transfer_cost": 0
+  },
+  {
+    "gw": 2,
+    "entry_id": 1003,
+    "manager_name": "Chris",
+    "team_name": "Zurich City",
+    "total_points": 130,
+    "gw_points": 65,
+    "active_chip": null,
+    "transfer_cost": 0
+  },
+  {
+    "gw": 3,
+    "entry_id": 1003,
+    "manager_name": "Chris",
+    "team_name": "Zurich City",
+    "total_points": 190,
+    "gw_points": 60,
+    "active_chip": null,
+    "transfer_cost": 0
+  }
+]

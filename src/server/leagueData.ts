@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 
 import { db } from "@/db/client";
 import {
@@ -7,8 +7,10 @@ import {
   leagues,
   managers,
   seasonEntries,
+  seasons,
   syncRuns,
 } from "@/db/schema";
+import { seasonNameFromSlug } from "@/ingestion/legacySnapshots";
 import { leagueConfig } from "@/lib/leagueConfig";
 import { gameweekWinner, monthlyWinner } from "@/metrics/awards";
 import { computeLeagueInsights, type LeagueInsights } from "@/metrics/insights";
@@ -38,11 +40,16 @@ export interface LeagueOverview {
   monthlyLeader: AwardCard | null;
   insights: LeagueInsights | null;
   lastSync: { status: string; finishedAt: Date | null } | null;
-  dataMode: "preseason" | "live" | "empty";
+  dataMode: "preseason" | "live" | "archived" | "empty";
+  seasonState: string | null;
 }
 
 export interface LeagueOverviewOptions {
   throughEvent?: number;
+  /** Season display name (e.g. "2024/25") or URL slug (e.g. "2024-25"). */
+  seasonName?: string;
+  /** When true, only seasons with state=archived are considered. */
+  archivedOnly?: boolean;
 }
 
 /**
@@ -81,9 +88,19 @@ export async function getLeagueOverview(
     insights: null,
     lastSync,
     dataMode: "empty",
+    seasonState: null,
   };
 
   if (!league) return empty;
+
+  const season = await resolveSeason(league.id, options);
+  if (!season) {
+    return {
+      ...empty,
+      league: { slug: league.slug, name: league.name, visibility: league.visibility },
+      dataMode: options.archivedOnly ? "empty" : "preseason",
+    };
+  }
 
   const entryRows = await db
     .select({
@@ -95,25 +112,27 @@ export async function getLeagueOverview(
     })
     .from(seasonEntries)
     .innerJoin(managers, eq(managers.id, seasonEntries.managerId))
-    .where(eq(seasonEntries.leagueId, league.id));
+    .where(
+      and(
+        eq(seasonEntries.leagueId, league.id),
+        eq(seasonEntries.seasonId, season.id),
+      ),
+    );
 
   if (entryRows.length === 0) {
     return {
       ...empty,
       league: { slug: league.slug, name: league.name, visibility: league.visibility },
-      dataMode: "preseason",
+      seasonName: season.name,
+      seasonState: season.state,
+      dataMode: season.state === "archived" ? "archived" : "preseason",
     };
   }
-
-  const seasonId = entryRows[0]!.seasonId;
-  const season = await db.query.seasons.findFirst({
-    where: (s, { eq: e }) => e(s.id, seasonId),
-  });
 
   const eventRows = await db
     .select()
     .from(events)
-    .where(eq(events.seasonId, seasonId))
+    .where(eq(events.seasonId, season.id))
     .orderBy(events.eventNumber);
 
   const phaseByEvent = new Map<number, { phase: number; phaseName: string | null }>();
@@ -133,7 +152,7 @@ export async function getLeagueOverview(
     })
     .from(entryEventResults)
     .innerJoin(events, eq(events.id, entryEventResults.eventId))
-    .where(eq(events.seasonId, seasonId));
+    .where(eq(events.seasonId, season.id));
 
   const entries: EntryInput[] = entryRows.map((e) => ({
     entryId: e.entryId,
@@ -230,11 +249,16 @@ export async function getLeagueOverview(
       : null;
 
   const dataMode: LeagueOverview["dataMode"] =
-    latestFinishedEvent === null ? "preseason" : "live";
+    season.state === "archived"
+      ? "archived"
+      : latestFinishedEvent === null
+        ? "preseason"
+        : "live";
 
   return {
     league: { slug: league.slug, name: league.name, visibility: league.visibility },
-    seasonName: season?.name ?? null,
+    seasonName: season.name,
+    seasonState: season.state,
     registeredManagers: entries.length,
     latestFinishedEvent,
     currentEvent,
@@ -248,4 +272,63 @@ export async function getLeagueOverview(
     lastSync,
     dataMode,
   };
+}
+
+async function resolveSeason(
+  leagueId: string,
+  options: LeagueOverviewOptions,
+) {
+  if (options.seasonName) {
+    const name = options.seasonName.includes("/")
+      ? options.seasonName
+      : seasonNameFromSlug(options.seasonName);
+    const season = await db.query.seasons.findFirst({
+      where: eq(seasons.name, name),
+    });
+    if (!season) return null;
+    if (options.archivedOnly && season.state !== "archived") return null;
+    const hasEntries = await db.query.seasonEntries.findFirst({
+      where: and(
+        eq(seasonEntries.leagueId, leagueId),
+        eq(seasonEntries.seasonId, season.id),
+      ),
+    });
+    return hasEntries ? season : null;
+  }
+
+  if (options.archivedOnly) {
+    const archived = await db
+      .select({ season: seasons })
+      .from(seasons)
+      .innerJoin(seasonEntries, eq(seasonEntries.seasonId, seasons.id))
+      .where(
+        and(eq(seasonEntries.leagueId, leagueId), eq(seasons.state, "archived")),
+      )
+      .orderBy(desc(seasons.name))
+      .limit(1);
+    return archived[0]?.season ?? null;
+  }
+
+  const active = await db.query.seasons.findFirst({
+    where: eq(seasons.state, "active"),
+    orderBy: desc(seasons.name),
+  });
+  if (active) {
+    const hasEntries = await db.query.seasonEntries.findFirst({
+      where: and(
+        eq(seasonEntries.leagueId, leagueId),
+        eq(seasonEntries.seasonId, active.id),
+      ),
+    });
+    if (hasEntries) return active;
+  }
+
+  const fallback = await db
+    .select({ season: seasons })
+    .from(seasons)
+    .innerJoin(seasonEntries, eq(seasonEntries.seasonId, seasons.id))
+    .where(eq(seasonEntries.leagueId, leagueId))
+    .orderBy(desc(seasons.name))
+    .limit(1);
+  return fallback[0]?.season ?? null;
 }

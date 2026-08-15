@@ -74,6 +74,8 @@ Ideas queued for a future release:
 |---|---|
 | `/league` | Standings, awards, league storylines |
 | `/league?gw=3` | Standings through GW3 |
+| `/history` | Archived seasons list |
+| `/history/2024-25` | Past season with GW picker |
 | `/api/v1/league/standings` | Standings + insights as JSON |
 | `/api/v1/meta/freshness` | Last sync run |
 | `/health` | Liveness |
@@ -86,6 +88,7 @@ Ideas queued for a future release:
 | `npm run dev` | Dev server |
 | `npm run fetch:fpl` | Pull public FPL league → `data/league-snapshot.json` |
 | `npm run sync:fpl` | Fetch + import into Postgres |
+| `npm run import:legacy` | Import archived season from legacy Supabase export |
 | `npm run job:sync-current` | Import active provider snapshot |
 | `npm run test` | Vitest unit tests |
 
@@ -111,6 +114,8 @@ src/
   metrics/      # standings, awards, insights (+ tests)
   providers/    # fixtures, manual, FPL fetch helpers
   server/       # server-side data loaders
-scripts/        # install, start, fetch-fpl, sync-from-fpl
-data/           # live snapshot (gitignored)
+scripts/        # install, start, fetch-fpl, sync-from-fpl, import-legacy
+data/           # live snapshot + legacy exports
 ```
+
+**Historical data:** see [docs/HISTORICAL_DATA.md](docs/HISTORICAL_DATA.md).

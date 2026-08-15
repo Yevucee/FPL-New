@@ -29,12 +29,9 @@ export default function RootLayout({
                 <Link href="/league" className="hover:text-swiss-600">
                   Standings
                 </Link>
-                <span
-                  className="cursor-not-allowed text-slate-300"
-                  title="Past seasons — coming after this season ends"
-                >
+                <Link href="/history" className="hover:text-swiss-600">
                   History
-                </span>
+                </Link>
               </nav>
             </div>
           </header>
