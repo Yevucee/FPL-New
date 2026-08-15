@@ -1,104 +1,101 @@
-# FPL League Archive + Private Team Planner
+# Swiss Expert League — Live standings & archive
 
-A private Fantasy Premier League league's **permanent record book** plus an
-owner-only **decision desk**. Built as a modular monolith following
-[`fpl-league-platform-cursor-build-spec`](#) — Next.js (App Router) + TypeScript,
+A private Fantasy Premier League league's **live standings hub** and growing
+**season archive**. Built as a modular monolith — Next.js (App Router) + TypeScript,
 PostgreSQL, Drizzle ORM, and Zod, targeting Railway.
 
-> This repository currently contains the **Phase 1 first slice**: project
-> scaffold, core schema + migrations, a fixtures data provider, an idempotent
-> sample import, the current-league standings API/page, and health/readiness
-> endpoints. Later phases (history archive, private planner, optimiser) build on
-> this foundation. See the build specification for the full roadmap.
+## What members see today
+
+- **Live standings** with gameweek picker (once the season is underway)
+- **Gameweek winner** and **monthly leader** awards
+- **League storylines** — wooden spoon, biggest climber/faller, form table, chips played, bench hoarder, transfer gambler, season-best GW
+- **Pre-season view** — registered manager count before GW1
+- JSON API at `/api/v1/league/standings`
 
 ## Data-source policy
 
-The current FPL JSON endpoints are undocumented and their terms restrict
-automated extraction. This app therefore ships behind a `FantasyDataProvider`
-abstraction and defaults to `FANTASY_PROVIDER_MODE=fixtures` (recorded/synthetic
-sample data). It never stores FPL credentials/cookies and never submits team
-changes. See specification section 2.
+FPL's public JSON endpoints are undocumented and their terms restrict automated
+extraction. This app therefore:
 
-## Tech stack
+- Uses a `FantasyDataProvider` abstraction
+- Defaults to `fixtures` (sample data) for development
+- Uses `manual` mode in production: you run `npm run fetch:fpl` after each gameweek
+- Never stores FPL credentials or submits team changes
 
-- **Web/full stack:** Next.js App Router + strict TypeScript
-- **UI:** Tailwind CSS (original league branding)
-- **Database:** PostgreSQL + Drizzle ORM & SQL migrations
-- **Validation:** Zod at provider/API boundaries
-- **Tests:** Vitest (unit), Playwright (planned e2e)
-
-## Requirements
-
-- Node.js >= 22
-- PostgreSQL 16 (a project-local cluster is provisioned automatically by the
-  setup scripts; no root service required)
-
-## Quick start
+## Quick start (development)
 
 ```bash
-# 1) One-time bootstrap: starts a local PostgreSQL, installs deps,
-#    runs migrations, and imports the sample league. Idempotent.
-bash scripts/install.sh
-
-# 2) Start PostgreSQL (if not already) + the dev server.
-bash scripts/start.sh
-# open http://localhost:3000/league
+bash scripts/install.sh   # Postgres + deps + sample import
+bash scripts/start.sh     # ensure Postgres is up
+# Next.js runs in the next-dev terminal (port 3000)
+open http://localhost:3000/league
 ```
 
-Manual equivalents:
+## Live season workflow (once you have the FPL league ID)
+
+1. Copy `.env.example` → `.env`
+2. Set `LEAGUE_PROVIDER_ID` from your FPL league URL:
+   `https://fantasy.premierleague.com/leagues/<ID>/standings/c`
+3. Set `FANTASY_PROVIDER_MODE=manual`
+4. After each gameweek deadline (when FPL updates scores):
 
 ```bash
-npm ci
-npm run db:migrate         # apply Drizzle migrations
-npm run job:sync-current   # idempotent sample import (fixtures provider)
-npm run dev                # Next.js dev server on 0.0.0.0:3000
+npm run sync:fpl
+# or: npm run fetch:fpl && FANTASY_PROVIDER_MODE=manual npm run job:sync-current
 ```
+
+5. Share the deployed URL with the league
+
+## Railway deploy
+
+1. Create a Railway project with **PostgreSQL** + **Web** service from this repo
+2. Set environment variables from `.env.example` (use Railway's `DATABASE_URL`)
+3. `railway.toml` runs migrations on deploy and health-checks `/ready`
+4. Optional: add a **Cron** service running `FANTASY_PROVIDER_MODE=manual npm run sync:fpl` weekly
 
 ## Useful endpoints
 
 | Path | Purpose |
 |---|---|
-| `/league` | Current standings, Gameweek winner, monthly leader |
-| `/api/v1/league/standings` | Standings + awards as JSON (`{ data, meta, error }`) |
-| `/api/v1/meta/freshness` | Last sync run + automatic-sync flag |
-| `/health` | Liveness (process only) |
-| `/ready` | Readiness (checks the database) |
+| `/league` | Standings, awards, league storylines |
+| `/league?gw=3` | Standings through GW3 |
+| `/api/v1/league/standings` | Standings + insights as JSON |
+| `/api/v1/meta/freshness` | Last sync run |
+| `/health` | Liveness |
+| `/ready` | Readiness (database) |
 
 ## Scripts
 
 | Command | Description |
 |---|---|
-| `npm run dev` | Start the dev server |
-| `npm run build` | Production build |
-| `npm run typecheck` | `tsc --noEmit` |
-| `npm run lint` | `next lint` |
+| `npm run dev` | Dev server |
+| `npm run fetch:fpl` | Pull public FPL league → `data/league-snapshot.json` |
+| `npm run sync:fpl` | Fetch + import into Postgres |
+| `npm run job:sync-current` | Import active provider snapshot |
 | `npm run test` | Vitest unit tests |
-| `npm run db:generate` | Generate a Drizzle migration from schema changes |
-| `npm run db:migrate` | Apply migrations |
-| `npm run job:sync-current` | Import the current league from the active provider |
 
-## Configuration
+## Finding your league ID
 
-Copy `.env.example` to `.env`. Key variables:
+We could not find a public listing for **Swiss Expert League**. When your FPL
+league is created:
 
-- `DATABASE_URL` — PostgreSQL connection (Railway: use the **private** URL).
-- `FANTASY_PROVIDER_MODE` — `fixtures` (default) | `manual` | `approved-fpl`.
-- `AUTOMATIC_SYNC_ENABLED` — stays `false` until a lawful FPL access basis is
-  confirmed.
+1. Open the league in a browser while logged into FPL
+2. Copy the number from the URL: `fantasy.premierleague.com/leagues/123456/standings/c`
+3. Set `LEAGUE_PROVIDER_ID=123456` in Railway / `.env`
 
 ## Project layout
 
 ```text
 src/
-  app/          # pages + route handlers (App Router)
-  contracts/    # Zod schemas validated at boundaries
-  db/           # Drizzle schema, client, migrate runner
+  app/          # pages + route handlers
+  contracts/    # Zod schemas at provider boundaries
+  db/           # Drizzle schema + migrations
   ingestion/    # idempotent snapshot import
-  jobs/         # short-lived job entrypoints (Railway cron)
-  lib/          # shared helpers (API envelope)
-  metrics/      # pure standings/award functions (+ unit tests)
-  providers/    # FantasyDataProvider interface + fixtures provider + sample data
-  server/       # server-side data loaders for pages/APIs
-scripts/        # local environment bootstrap (PostgreSQL + install/start)
-drizzle/        # generated SQL migrations
+  jobs/         # sync-current entrypoint
+  lib/          # league config, API envelope
+  metrics/      # standings, awards, insights (+ tests)
+  providers/    # fixtures, manual, FPL fetch helpers
+  server/       # server-side data loaders
+scripts/        # install, start, fetch-fpl, sync-from-fpl
+data/           # live snapshot (gitignored)
 ```

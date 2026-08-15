@@ -9,7 +9,9 @@ import {
   seasonEntries,
   syncRuns,
 } from "@/db/schema";
+import { leagueConfig } from "@/lib/leagueConfig";
 import { gameweekWinner, monthlyWinner } from "@/metrics/awards";
+import { computeLeagueInsights, type LeagueInsights } from "@/metrics/insights";
 import { computeStandings } from "@/metrics/standings";
 import type { EntryInput, ResultInput, StandingRow } from "@/metrics/types";
 
@@ -25,23 +27,34 @@ export interface AwardCard {
 export interface LeagueOverview {
   league: { slug: string; name: string; visibility: string } | null;
   seasonName: string | null;
-  latestEvent: number | null;
+  registeredManagers: number;
+  latestFinishedEvent: number | null;
+  currentEvent: number | null;
+  nextEvent: number | null;
+  selectedEvent: number | null;
+  finishedEvents: number[];
   standings: StandingRow[];
   gameweekWinner: AwardCard | null;
   monthlyLeader: AwardCard | null;
+  insights: LeagueInsights | null;
   lastSync: { status: string; finishedAt: Date | null } | null;
+  dataMode: "preseason" | "live" | "empty";
 }
 
-const LEAGUE_SLUG = process.env.LEAGUE_SLUG ?? "the-gaffers-league";
+export interface LeagueOverviewOptions {
+  throughEvent?: number;
+}
 
 /**
  * Load everything the League home / standings views need. Reads normalised rows
  * from PostgreSQL and applies the pure metric functions — the UI never contains
  * scoring formulas (specification section 9).
  */
-export async function getLeagueOverview(): Promise<LeagueOverview> {
+export async function getLeagueOverview(
+  options: LeagueOverviewOptions = {},
+): Promise<LeagueOverview> {
   const league = await db.query.leagues.findFirst({
-    where: eq(leagues.slug, LEAGUE_SLUG),
+    where: eq(leagues.slug, leagueConfig.slug),
   });
 
   const lastSyncRow = await db.query.syncRuns.findFirst({
@@ -51,17 +64,26 @@ export async function getLeagueOverview(): Promise<LeagueOverview> {
     ? { status: lastSyncRow.status, finishedAt: lastSyncRow.finishedAt }
     : null;
 
-  if (!league) {
-    return {
-      league: null,
-      seasonName: null,
-      latestEvent: null,
-      standings: [],
-      gameweekWinner: null,
-      monthlyLeader: null,
-      lastSync,
-    };
-  }
+  const empty: LeagueOverview = {
+    league: league
+      ? { slug: league.slug, name: league.name, visibility: league.visibility }
+      : null,
+    seasonName: null,
+    registeredManagers: 0,
+    latestFinishedEvent: null,
+    currentEvent: null,
+    nextEvent: null,
+    selectedEvent: null,
+    finishedEvents: [],
+    standings: [],
+    gameweekWinner: null,
+    monthlyLeader: null,
+    insights: null,
+    lastSync,
+    dataMode: "empty",
+  };
+
+  if (!league) return empty;
 
   const entryRows = await db
     .select({
@@ -77,13 +99,9 @@ export async function getLeagueOverview(): Promise<LeagueOverview> {
 
   if (entryRows.length === 0) {
     return {
+      ...empty,
       league: { slug: league.slug, name: league.name, visibility: league.visibility },
-      seasonName: null,
-      latestEvent: null,
-      standings: [],
-      gameweekWinner: null,
-      monthlyLeader: null,
-      lastSync,
+      dataMode: "preseason",
     };
   }
 
@@ -111,6 +129,7 @@ export async function getLeagueOverview(): Promise<LeagueOverview> {
       grossPoints: entryEventResults.grossPoints,
       transferCost: entryEventResults.transferCost,
       benchPoints: entryEventResults.benchPoints,
+      chip: entryEventResults.chip,
     })
     .from(entryEventResults)
     .innerJoin(events, eq(events.id, entryEventResults.eventId))
@@ -131,10 +150,43 @@ export async function getLeagueOverview(): Promise<LeagueOverview> {
     grossPoints: r.grossPoints,
     transferCost: r.transferCost,
     benchPoints: r.benchPoints,
+    chip: r.chip,
   }));
 
-  const latestEvent =
-    eventRows.length > 0 ? Math.max(...eventRows.map((e) => e.eventNumber)) : null;
+  const finishedEvents = eventRows
+    .filter((ev) => ev.finished && ev.checked)
+    .map((ev) => ev.eventNumber);
+
+  const eventsWithScores = [...new Set(results.map((r) => r.eventNumber))].sort(
+    (a, b) => a - b,
+  );
+
+  const latestFinishedEvent =
+    finishedEvents.length > 0
+      ? Math.max(...finishedEvents)
+      : eventsWithScores.length > 0
+        ? Math.max(...eventsWithScores)
+        : null;
+
+  const currentEvent =
+    eventRows.find((ev) => ev.finished === false && ev.checked === false)?.eventNumber ??
+    eventRows.find((ev) => !ev.finished)?.eventNumber ??
+    latestFinishedEvent;
+
+  const nextEvent =
+    eventRows.find((ev) => !ev.finished)?.eventNumber ?? null;
+
+  const selectableEvents =
+    latestFinishedEvent !== null
+      ? eventRows
+          .map((ev) => ev.eventNumber)
+          .filter((n) => n <= latestFinishedEvent)
+      : [];
+
+  const selectedEvent =
+    options.throughEvent && selectableEvents.includes(options.throughEvent)
+      ? options.throughEvent
+      : latestFinishedEvent;
 
   const nameById = new Map(entries.map((e) => [e.entryId, e]));
   const toCard = (
@@ -155,30 +207,45 @@ export async function getLeagueOverview(): Promise<LeagueOverview> {
   };
 
   const standings =
-    latestEvent !== null ? computeStandings(entries, results, latestEvent) : [];
+    selectedEvent !== null ? computeStandings(entries, results, selectedEvent) : [];
 
   const gwCard =
-    latestEvent !== null
-      ? toCard(gameweekWinner(results, latestEvent), { eventNumber: latestEvent })
+    selectedEvent !== null
+      ? toCard(gameweekWinner(results, selectedEvent), { eventNumber: selectedEvent })
       : null;
 
-  const latestPhase =
-    latestEvent !== null ? phaseByEvent.get(latestEvent)?.phase ?? 1 : null;
+  const selectedPhase =
+    selectedEvent !== null ? phaseByEvent.get(selectedEvent)?.phase ?? 1 : null;
   const monthlyCard =
-    latestPhase !== null
-      ? toCard(monthlyWinner(results, latestPhase), {
-          phase: latestPhase,
-          phaseName: phaseByEvent.get(latestEvent!)?.phaseName ?? null,
+    selectedPhase !== null && selectedEvent !== null
+      ? toCard(monthlyWinner(results, selectedPhase), {
+          phase: selectedPhase,
+          phaseName: phaseByEvent.get(selectedEvent)?.phaseName ?? null,
         })
       : null;
+
+  const insights =
+    selectedEvent !== null
+      ? computeLeagueInsights(entries, results, selectedEvent)
+      : null;
+
+  const dataMode: LeagueOverview["dataMode"] =
+    latestFinishedEvent === null ? "preseason" : "live";
 
   return {
     league: { slug: league.slug, name: league.name, visibility: league.visibility },
     seasonName: season?.name ?? null,
-    latestEvent,
+    registeredManagers: entries.length,
+    latestFinishedEvent,
+    currentEvent,
+    nextEvent,
+    selectedEvent,
+    finishedEvents: selectableEvents,
     standings,
     gameweekWinner: gwCard,
     monthlyLeader: monthlyCard,
+    insights,
     lastSync,
+    dataMode,
   };
 }

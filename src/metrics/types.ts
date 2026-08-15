@@ -13,6 +13,7 @@ export interface ResultInput {
   grossPoints: number;
   transferCost: number;
   benchPoints: number;
+  chip?: string | null;
 }
 
 export interface EntryInput {

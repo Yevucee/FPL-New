@@ -6,8 +6,8 @@
     "startEvent": 1
   },
   "league": {
-    "slug": "the-gaffers-league",
-    "name": "The Gaffers League",
+    "slug": "swiss-expert-league",
+    "name": "Swiss Expert League",
     "providerId": "sample-1",
     "visibility": "unlisted",
     "timezone": "Europe/London"

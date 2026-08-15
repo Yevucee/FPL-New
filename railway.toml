@@ -1,0 +1,9 @@
+[build]
+builder = "nixpacks"
+buildCommand = "npm ci && npm run build"
+
+[deploy]
+startCommand = "npm run db:migrate && npm run start"
+healthcheckPath = "/ready"
+healthcheckTimeout = 120
+restartPolicyType = "on_failure"
