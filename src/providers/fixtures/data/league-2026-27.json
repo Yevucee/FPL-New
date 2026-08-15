@@ -1,0 +1,527 @@
+{
+  "provider": "fixtures",
+  "season": {
+    "name": "2026/27",
+    "providerId": "2026-27",
+    "startEvent": 1
+  },
+  "league": {
+    "slug": "the-gaffers-league",
+    "name": "The Gaffers League",
+    "providerId": "sample-1",
+    "visibility": "unlisted",
+    "timezone": "Europe/London"
+  },
+  "events": [
+    {
+      "eventNumber": 1,
+      "deadline": "2026-08-14T17:30:00Z",
+      "phase": 1,
+      "phaseName": "August",
+      "finished": true,
+      "checked": true
+    },
+    {
+      "eventNumber": 2,
+      "deadline": "2026-08-21T17:30:00Z",
+      "phase": 1,
+      "phaseName": "August",
+      "finished": true,
+      "checked": true
+    },
+    {
+      "eventNumber": 3,
+      "deadline": "2026-08-28T17:30:00Z",
+      "phase": 1,
+      "phaseName": "August",
+      "finished": true,
+      "checked": true
+    },
+    {
+      "eventNumber": 4,
+      "deadline": "2026-09-11T17:30:00Z",
+      "phase": 2,
+      "phaseName": "September",
+      "finished": true,
+      "checked": true
+    },
+    {
+      "eventNumber": 5,
+      "deadline": "2026-09-18T17:30:00Z",
+      "phase": 2,
+      "phaseName": "September",
+      "finished": true,
+      "checked": true
+    }
+  ],
+  "entries": [
+    {
+      "providerEntryId": "e-101",
+      "managerName": "Alex Morgan",
+      "teamName": "Callum's Comets",
+      "joinEvent": 1,
+      "results": [
+        {
+          "eventNumber": 1,
+          "netPoints": 60,
+          "grossPoints": 60,
+          "transferCost": 0,
+          "totalPoints": 60,
+          "benchPoints": 5,
+          "teamValue": 997,
+          "bank": 5
+        },
+        {
+          "eventNumber": 2,
+          "netPoints": 80,
+          "grossPoints": 84,
+          "transferCost": 4,
+          "totalPoints": 140,
+          "benchPoints": 6,
+          "teamValue": 994,
+          "bank": 5,
+          "chip": "bboost"
+        },
+        {
+          "eventNumber": 3,
+          "netPoints": 47,
+          "grossPoints": 47,
+          "transferCost": 0,
+          "totalPoints": 187,
+          "benchPoints": 9,
+          "teamValue": 991,
+          "bank": 5
+        },
+        {
+          "eventNumber": 4,
+          "netPoints": 68,
+          "grossPoints": 68,
+          "transferCost": 0,
+          "totalPoints": 255,
+          "benchPoints": 4,
+          "teamValue": 988,
+          "bank": 5
+        },
+        {
+          "eventNumber": 5,
+          "netPoints": 59,
+          "grossPoints": 63,
+          "transferCost": 4,
+          "totalPoints": 314,
+          "benchPoints": 7,
+          "teamValue": 985,
+          "bank": 5
+        }
+      ]
+    },
+    {
+      "providerEntryId": "e-102",
+      "managerName": "Sam Okafor",
+      "teamName": "Midfield Maestros",
+      "joinEvent": 1,
+      "results": [
+        {
+          "eventNumber": 1,
+          "netPoints": 72,
+          "grossPoints": 72,
+          "transferCost": 0,
+          "totalPoints": 72,
+          "benchPoints": 8,
+          "teamValue": 998,
+          "bank": 6
+        },
+        {
+          "eventNumber": 2,
+          "netPoints": 51,
+          "grossPoints": 51,
+          "transferCost": 0,
+          "totalPoints": 123,
+          "benchPoints": 4,
+          "teamValue": 996,
+          "bank": 6
+        },
+        {
+          "eventNumber": 3,
+          "netPoints": 65,
+          "grossPoints": 69,
+          "transferCost": 4,
+          "totalPoints": 188,
+          "benchPoints": 3,
+          "teamValue": 994,
+          "bank": 6
+        },
+        {
+          "eventNumber": 4,
+          "netPoints": 58,
+          "grossPoints": 58,
+          "transferCost": 0,
+          "totalPoints": 246,
+          "benchPoints": 7,
+          "teamValue": 992,
+          "bank": 6
+        },
+        {
+          "eventNumber": 5,
+          "netPoints": 69,
+          "grossPoints": 69,
+          "transferCost": 0,
+          "totalPoints": 315,
+          "benchPoints": 5,
+          "teamValue": 990,
+          "bank": 6
+        }
+      ]
+    },
+    {
+      "providerEntryId": "e-103",
+      "managerName": "Jordan Lee",
+      "teamName": "Back Four Bandits",
+      "joinEvent": 1,
+      "results": [
+        {
+          "eventNumber": 1,
+          "netPoints": 55,
+          "grossPoints": 55,
+          "transferCost": 0,
+          "totalPoints": 55,
+          "benchPoints": 3,
+          "teamValue": 999,
+          "bank": 7
+        },
+        {
+          "eventNumber": 2,
+          "netPoints": 63,
+          "grossPoints": 63,
+          "transferCost": 0,
+          "totalPoints": 118,
+          "benchPoints": 7,
+          "teamValue": 998,
+          "bank": 7
+        },
+        {
+          "eventNumber": 3,
+          "netPoints": 71,
+          "grossPoints": 79,
+          "transferCost": 8,
+          "totalPoints": 189,
+          "benchPoints": 5,
+          "teamValue": 997,
+          "bank": 7
+        },
+        {
+          "eventNumber": 4,
+          "netPoints": 49,
+          "grossPoints": 49,
+          "transferCost": 0,
+          "totalPoints": 238,
+          "benchPoints": 8,
+          "teamValue": 996,
+          "bank": 7
+        },
+        {
+          "eventNumber": 5,
+          "netPoints": 64,
+          "grossPoints": 64,
+          "transferCost": 0,
+          "totalPoints": 302,
+          "benchPoints": 4,
+          "teamValue": 995,
+          "bank": 7
+        }
+      ]
+    },
+    {
+      "providerEntryId": "e-104",
+      "managerName": "Priya Shah",
+      "teamName": "xG Enjoyers",
+      "joinEvent": 1,
+      "results": [
+        {
+          "eventNumber": 1,
+          "netPoints": 48,
+          "grossPoints": 48,
+          "transferCost": 0,
+          "totalPoints": 48,
+          "benchPoints": 12,
+          "teamValue": 1000,
+          "bank": 8
+        },
+        {
+          "eventNumber": 2,
+          "netPoints": 70,
+          "grossPoints": 74,
+          "transferCost": 4,
+          "totalPoints": 118,
+          "benchPoints": 3,
+          "teamValue": 1000,
+          "bank": 8
+        },
+        {
+          "eventNumber": 3,
+          "netPoints": 59,
+          "grossPoints": 59,
+          "transferCost": 0,
+          "totalPoints": 177,
+          "benchPoints": 6,
+          "teamValue": 1000,
+          "bank": 8
+        },
+        {
+          "eventNumber": 4,
+          "netPoints": 77,
+          "grossPoints": 77,
+          "transferCost": 0,
+          "totalPoints": 254,
+          "benchPoints": 2,
+          "teamValue": 1000,
+          "bank": 8,
+          "chip": "wildcard"
+        },
+        {
+          "eventNumber": 5,
+          "netPoints": 50,
+          "grossPoints": 50,
+          "transferCost": 0,
+          "totalPoints": 304,
+          "benchPoints": 8,
+          "teamValue": 1000,
+          "bank": 8
+        }
+      ]
+    },
+    {
+      "providerEntryId": "e-105",
+      "managerName": "Chinedu Balogun",
+      "teamName": "Set Piece FC",
+      "joinEvent": 1,
+      "results": [
+        {
+          "eventNumber": 1,
+          "netPoints": 66,
+          "grossPoints": 66,
+          "transferCost": 0,
+          "totalPoints": 66,
+          "benchPoints": 6,
+          "teamValue": 1001,
+          "bank": 5
+        },
+        {
+          "eventNumber": 2,
+          "netPoints": 58,
+          "grossPoints": 58,
+          "transferCost": 0,
+          "totalPoints": 124,
+          "benchPoints": 10,
+          "teamValue": 1002,
+          "bank": 5
+        },
+        {
+          "eventNumber": 3,
+          "netPoints": 62,
+          "grossPoints": 62,
+          "transferCost": 0,
+          "totalPoints": 186,
+          "benchPoints": 4,
+          "teamValue": 1003,
+          "bank": 5
+        },
+        {
+          "eventNumber": 4,
+          "netPoints": 55,
+          "grossPoints": 59,
+          "transferCost": 4,
+          "totalPoints": 241,
+          "benchPoints": 6,
+          "teamValue": 1004,
+          "bank": 5
+        },
+        {
+          "eventNumber": 5,
+          "netPoints": 71,
+          "grossPoints": 71,
+          "transferCost": 0,
+          "totalPoints": 312,
+          "benchPoints": 3,
+          "teamValue": 1005,
+          "bank": 5
+        }
+      ]
+    },
+    {
+      "providerEntryId": "e-106",
+      "managerName": "Mia Novak",
+      "teamName": "Bench Boost Brigade",
+      "joinEvent": 1,
+      "results": [
+        {
+          "eventNumber": 1,
+          "netPoints": 51,
+          "grossPoints": 51,
+          "transferCost": 0,
+          "totalPoints": 51,
+          "benchPoints": 4,
+          "teamValue": 1002,
+          "bank": 6
+        },
+        {
+          "eventNumber": 2,
+          "netPoints": 49,
+          "grossPoints": 49,
+          "transferCost": 0,
+          "totalPoints": 100,
+          "benchPoints": 5,
+          "teamValue": 1004,
+          "bank": 6
+        },
+        {
+          "eventNumber": 3,
+          "netPoints": 74,
+          "grossPoints": 74,
+          "transferCost": 0,
+          "totalPoints": 174,
+          "benchPoints": 2,
+          "teamValue": 1006,
+          "bank": 6,
+          "chip": "3xc"
+        },
+        {
+          "eventNumber": 4,
+          "netPoints": 63,
+          "grossPoints": 63,
+          "transferCost": 0,
+          "totalPoints": 237,
+          "benchPoints": 5,
+          "teamValue": 1008,
+          "bank": 6
+        },
+        {
+          "eventNumber": 5,
+          "netPoints": 57,
+          "grossPoints": 57,
+          "transferCost": 0,
+          "totalPoints": 294,
+          "benchPoints": 6,
+          "teamValue": 1010,
+          "bank": 6
+        }
+      ]
+    },
+    {
+      "providerEntryId": "e-107",
+      "managerName": "Tom Whitfield",
+      "teamName": "Clean Sheet Cartel",
+      "joinEvent": 1,
+      "results": [
+        {
+          "eventNumber": 1,
+          "netPoints": 44,
+          "grossPoints": 44,
+          "transferCost": 0,
+          "totalPoints": 44,
+          "benchPoints": 9,
+          "teamValue": 1003,
+          "bank": 7
+        },
+        {
+          "eventNumber": 2,
+          "netPoints": 61,
+          "grossPoints": 61,
+          "transferCost": 0,
+          "totalPoints": 105,
+          "benchPoints": 2,
+          "teamValue": 1006,
+          "bank": 7
+        },
+        {
+          "eventNumber": 3,
+          "netPoints": 53,
+          "grossPoints": 53,
+          "transferCost": 0,
+          "totalPoints": 158,
+          "benchPoints": 11,
+          "teamValue": 1009,
+          "bank": 7
+        },
+        {
+          "eventNumber": 4,
+          "netPoints": 66,
+          "grossPoints": 70,
+          "transferCost": 4,
+          "totalPoints": 224,
+          "benchPoints": 3,
+          "teamValue": 1012,
+          "bank": 7
+        },
+        {
+          "eventNumber": 5,
+          "netPoints": 48,
+          "grossPoints": 48,
+          "transferCost": 0,
+          "totalPoints": 272,
+          "benchPoints": 10,
+          "teamValue": 1015,
+          "bank": 7
+        }
+      ]
+    },
+    {
+      "providerEntryId": "e-108",
+      "managerName": "Ravi Patel",
+      "teamName": "Differential Dons",
+      "joinEvent": 1,
+      "results": [
+        {
+          "eventNumber": 1,
+          "netPoints": 72,
+          "grossPoints": 72,
+          "transferCost": 0,
+          "totalPoints": 72,
+          "benchPoints": 7,
+          "teamValue": 1004,
+          "bank": 8
+        },
+        {
+          "eventNumber": 2,
+          "netPoints": 55,
+          "grossPoints": 55,
+          "transferCost": 0,
+          "totalPoints": 127,
+          "benchPoints": 8,
+          "teamValue": 1008,
+          "bank": 8
+        },
+        {
+          "eventNumber": 3,
+          "netPoints": 60,
+          "grossPoints": 60,
+          "transferCost": 0,
+          "totalPoints": 187,
+          "benchPoints": 7,
+          "teamValue": 1012,
+          "bank": 8
+        },
+        {
+          "eventNumber": 4,
+          "netPoints": 52,
+          "grossPoints": 52,
+          "transferCost": 0,
+          "totalPoints": 239,
+          "benchPoints": 9,
+          "teamValue": 1016,
+          "bank": 8
+        },
+        {
+          "eventNumber": 5,
+          "netPoints": 73,
+          "grossPoints": 77,
+          "transferCost": 4,
+          "totalPoints": 312,
+          "benchPoints": 2,
+          "teamValue": 1020,
+          "bank": 8,
+          "chip": "freehit"
+        }
+      ]
+    }
+  ]
+}

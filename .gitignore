@@ -1,0 +1,25 @@
+# dependencies
+/node_modules
+
+# next.js
+/.next
+/out
+next-env.d.ts
+*.tsbuildinfo
+
+# testing
+/coverage
+/playwright-report
+/test-results
+/.playwright
+
+# env files (never commit real secrets)
+.env
+.env.local
+.env.*.local
+
+# logs
+*.log
+
+# os
+.DS_Store

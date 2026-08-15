@@ -1,0 +1,218 @@
+import { and, eq } from "drizzle-orm";
+
+import type { LeagueSnapshot } from "@/contracts/snapshot";
+import { db } from "@/db/client";
+import {
+  entryEventResults,
+  events,
+  leagues,
+  managers,
+  seasonEntries,
+  seasons,
+  syncRuns,
+} from "@/db/schema";
+import type { FantasyDataProvider } from "@/providers/types";
+
+export interface ImportCounts {
+  inserted: number;
+  updated: number;
+  skipped: number;
+  failed: number;
+}
+
+/**
+ * Idempotent league import (specification section 8).
+ *
+ * Every write is an upsert keyed by a unique constraint, so importing the same
+ * snapshot twice produces no duplicates. A sync_run row records the outcome and
+ * is visible to the admin area.
+ */
+export async function importSnapshot(
+  provider: FantasyDataProvider,
+): Promise<ImportCounts> {
+  const correlationId = crypto.randomUUID();
+  const [run] = await db
+    .insert(syncRuns)
+    .values({
+      provider: provider.name,
+      scope: "league-current",
+      status: "running",
+      correlationId,
+      codeVersion: process.env.GIT_SHA ?? "dev",
+    })
+    .returning();
+
+  const counts: ImportCounts = { inserted: 0, updated: 0, skipped: 0, failed: 0 };
+
+  try {
+    const snapshot = await provider.getLeagueSnapshot();
+    await applySnapshot(snapshot, counts);
+
+    await db
+      .update(syncRuns)
+      .set({
+        status: "succeeded",
+        finishedAt: new Date(),
+        inserted: counts.inserted,
+        updated: counts.updated,
+        skipped: counts.skipped,
+        failed: counts.failed,
+      })
+      .where(eq(syncRuns.id, run!.id));
+
+    return counts;
+  } catch (err) {
+    await db
+      .update(syncRuns)
+      .set({
+        status: "failed",
+        finishedAt: new Date(),
+        errorSummary: err instanceof Error ? err.message : String(err),
+      })
+      .where(eq(syncRuns.id, run!.id));
+    throw err;
+  }
+}
+
+async function applySnapshot(
+  snapshot: LeagueSnapshot,
+  counts: ImportCounts,
+): Promise<void> {
+  const [season] = await db
+    .insert(seasons)
+    .values({
+      name: snapshot.season.name,
+      providerId: snapshot.season.providerId ?? null,
+      startEvent: snapshot.season.startEvent,
+    })
+    .onConflictDoUpdate({
+      target: seasons.name,
+      set: { providerId: snapshot.season.providerId ?? null },
+    })
+    .returning();
+
+  const [league] = await db
+    .insert(leagues)
+    .values({
+      slug: snapshot.league.slug,
+      name: snapshot.league.name,
+      providerId: snapshot.league.providerId ?? null,
+      visibility: snapshot.league.visibility,
+      timezone: snapshot.league.timezone,
+    })
+    .onConflictDoUpdate({
+      target: leagues.slug,
+      set: { name: snapshot.league.name, visibility: snapshot.league.visibility },
+    })
+    .returning();
+
+  // Events
+  const eventIdByNumber = new Map<number, string>();
+  for (const ev of snapshot.events) {
+    const [row] = await db
+      .insert(events)
+      .values({
+        seasonId: season!.id,
+        eventNumber: ev.eventNumber,
+        deadline: ev.deadline ? new Date(ev.deadline) : null,
+        phase: ev.phase,
+        phaseName: ev.phaseName ?? null,
+        finished: ev.finished,
+        checked: ev.checked,
+        sealed: ev.finished && ev.checked,
+      })
+      .onConflictDoUpdate({
+        target: [events.seasonId, events.eventNumber],
+        set: {
+          deadline: ev.deadline ? new Date(ev.deadline) : null,
+          phase: ev.phase,
+          phaseName: ev.phaseName ?? null,
+          finished: ev.finished,
+          checked: ev.checked,
+          sealed: ev.finished && ev.checked,
+        },
+      })
+      .returning();
+    eventIdByNumber.set(ev.eventNumber, row!.id);
+    counts.updated += 1;
+  }
+
+  // Entries + results
+  for (const entry of snapshot.entries) {
+    const manager = await upsertManager(entry.managerName);
+
+    const [entryRow] = await db
+      .insert(seasonEntries)
+      .values({
+        seasonId: season!.id,
+        leagueId: league!.id,
+        managerId: manager.id,
+        provider: snapshot.provider,
+        providerEntryId: entry.providerEntryId,
+        teamName: entry.teamName,
+        joinEvent: entry.joinEvent,
+      })
+      .onConflictDoUpdate({
+        target: [
+          seasonEntries.seasonId,
+          seasonEntries.provider,
+          seasonEntries.providerEntryId,
+        ],
+        set: { teamName: entry.teamName, joinEvent: entry.joinEvent },
+      })
+      .returning();
+
+    for (const r of entry.results) {
+      const eventId = eventIdByNumber.get(r.eventNumber);
+      if (!eventId) {
+        counts.skipped += 1;
+        continue;
+      }
+      await db
+        .insert(entryEventResults)
+        .values({
+          seasonEntryId: entryRow!.id,
+          eventId,
+          netPoints: r.netPoints,
+          grossPoints: r.grossPoints,
+          transferCost: r.transferCost,
+          totalPoints: r.totalPoints,
+          benchPoints: r.benchPoints,
+          chip: r.chip ?? null,
+          teamValue: r.teamValue ?? null,
+          bank: r.bank ?? null,
+        })
+        .onConflictDoUpdate({
+          target: [entryEventResults.seasonEntryId, entryEventResults.eventId],
+          set: {
+            netPoints: r.netPoints,
+            grossPoints: r.grossPoints,
+            transferCost: r.transferCost,
+            totalPoints: r.totalPoints,
+            benchPoints: r.benchPoints,
+            chip: r.chip ?? null,
+            teamValue: r.teamValue ?? null,
+            bank: r.bank ?? null,
+          },
+        });
+      counts.updated += 1;
+    }
+  }
+}
+
+/**
+ * Link a season entry to a stable internal manager by display name.
+ * A real provider link uses admin review for ambiguous cases; for the fixtures
+ * slice the display name is unique and sufficient.
+ */
+async function upsertManager(displayName: string) {
+  const existing = await db.query.managers.findFirst({
+    where: and(eq(managers.displayName, displayName)),
+  });
+  if (existing) return existing;
+  const [created] = await db
+    .insert(managers)
+    .values({ displayName })
+    .returning();
+  return created!;
+}
