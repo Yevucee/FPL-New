@@ -9,6 +9,7 @@ import {
   seasonEntries,
   seasons,
 } from "@/db/schema";
+import { leagueHistoryProviderIds } from "@/lib/leagueHistoryConfig";
 import { seasonSlugFromName } from "@/lib/seasonNaming";
 import { leagueConfig } from "@/lib/leagueConfig";
 import { computeStandings } from "@/metrics/standings";
@@ -44,6 +45,8 @@ export async function listHistorySeasons(): Promise<HistorySeasonSummary[]> {
     .select({
       id: seasons.id,
       name: seasons.name,
+      state: seasons.state,
+      providerId: seasons.providerId,
     })
     .from(seasons)
     .innerJoin(seasonEntries, eq(seasonEntries.seasonId, seasons.id))
@@ -53,11 +56,18 @@ export async function listHistorySeasons(): Promise<HistorySeasonSummary[]> {
         inArray(seasons.state, [...ARCHIVED_STATES]),
       ),
     )
-    .groupBy(seasons.id, seasons.name)
+    .groupBy(seasons.id, seasons.name, seasons.state, seasons.providerId)
     .orderBy(desc(seasons.name));
+
+  const verifiedHistoryLeagueIds = new Set(leagueHistoryProviderIds().values());
 
   const summaries: HistorySeasonSummary[] = [];
   for (const row of seasonRows) {
+    if (row.state === "archived-summary") {
+      if (verifiedHistoryLeagueIds.size === 0) continue;
+      if (!row.providerId || !verifiedHistoryLeagueIds.has(row.providerId)) continue;
+    }
+
     const summary = await buildSeasonSummary(league.id, row.id, row.name);
     summaries.push(summary);
   }

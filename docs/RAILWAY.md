@@ -46,6 +46,7 @@ Force a full run locally: `FPL_SYNC_FORCE=1 npm run job:automated-sync`
 | `LEAGUE_SHORT_NAME` | `SEL` |
 | `LEAGUE_VISIBILITY` | `unlisted` |
 | `LEAGUE_PROVIDER_ID` | `1004960` *(Swiss Expert League — 2026/27 renewal)* |
+| `LEAGUE_HISTORY_PROVIDER_IDS` | `{"2025/26":"<last-season-id>"}` *(one FPL league ID per past season)* |
 | `FANTASY_PROVIDER_MODE` | `manual` |
 | `APP_TIMEZONE` | `Europe/Zurich` |
 | `SCORING_TIMEZONE` | `Europe/London` |
@@ -65,8 +66,8 @@ Cron schedule: `*/15 * * * *` (every 15 min, gated inside the job). Tune in Rail
 ### 5. When the league renews
 
 Set `LEAGUE_PROVIDER_ID=1004960` on **both** Web and sync-cron (Swiss Expert League
-2026/27 renewal). The ID changes each year when FPL creates a new private league —
-past seasons are still recovered from managers' official FPL career history.
+2026/27 renewal). FPL creates a new private league ID each season — add past IDs via
+`LEAGUE_HISTORY_PROVIDER_IDS` (see [HISTORICAL_DATA.md](HISTORICAL_DATA.md)).
 
 Within one maintenance or match-window sync:
 

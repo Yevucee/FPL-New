@@ -14,6 +14,7 @@ import {
 import type { MostOwnedPlayer } from "@/providers/fpl/mostOwned";
 import { seasonNameFromSlug } from "@/lib/seasonNaming";
 import { leagueConfig } from "@/lib/leagueConfig";
+import { leagueHistoryProviderIds } from "@/lib/leagueHistoryConfig";
 import { buildSelectableEvents, findLiveGameweek } from "@/lib/liveGameweek";
 import { gameweekWinner, monthlyWinner } from "@/metrics/awards";
 import { computeLeagueInsights, type LeagueInsights } from "@/metrics/insights";
@@ -382,6 +383,9 @@ async function resolveSeason(
     if (options.archivedOnly && !ARCHIVED_STATES.includes(season.state as (typeof ARCHIVED_STATES)[number])) {
       return null;
     }
+    if (options.archivedOnly && !isVerifiedSummaryArchive(season)) {
+      return null;
+    }
     const hasEntries = await db.query.seasonEntries.findFirst({
       where: and(
         eq(seasonEntries.leagueId, leagueId),
@@ -429,4 +433,11 @@ async function resolveSeason(
     .orderBy(desc(seasons.name))
     .limit(1);
   return fallback[0]?.season ?? null;
+}
+
+function isVerifiedSummaryArchive(season: { state: string; providerId: string | null }): boolean {
+  if (season.state !== "archived-summary") return true;
+  const verifiedIds = new Set(leagueHistoryProviderIds().values());
+  if (verifiedIds.size === 0) return false;
+  return season.providerId !== null && verifiedIds.has(season.providerId);
 }

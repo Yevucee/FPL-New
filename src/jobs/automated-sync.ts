@@ -3,6 +3,7 @@ import "dotenv/config";
 import { sql } from "@/db/client";
 import { importSnapshot } from "@/ingestion/importSnapshot";
 import { leagueConfig } from "@/lib/leagueConfig";
+import { leagueHistoryProviderIds } from "@/lib/leagueHistoryConfig";
 import { shouldRunAutomatedSync } from "@/lib/syncSchedule";
 import { enrichLeagueIntel } from "@/providers/fpl/enrichIntel";
 import { buildSnapshotFromFpl } from "@/providers/fpl/buildSnapshot";
@@ -17,7 +18,7 @@ import { hasArchivedSeasons, importFplHistory } from "./importFplHistory";
  *
  * 1. Sync live season from FPL (standings, chips, transfers, manager meta)
  * 2. Enrich post-deadline intel (captain + most owned) when squads lock
- * 3. Bootstrap history archive once from FPL season totals
+ * 3. Bootstrap past seasons from configured historical league IDs
  */
 async function main(): Promise<void> {
   const schedule = shouldRunAutomatedSync();
@@ -57,10 +58,16 @@ async function main(): Promise<void> {
   }
 
   const forceHistory = process.env.FPL_FORCE_HISTORY_IMPORT === "1";
-  const needsHistory = forceHistory || !(await hasArchivedSeasons());
+  const historyIds = leagueHistoryProviderIds();
+  const needsHistory =
+    historyIds.size > 0 && (forceHistory || !(await hasArchivedSeasons()));
   if (needsHistory) {
     const imported = await importFplHistory(leagueId);
     console.log(`[automated-sync] history bootstrap: ${imported} season(s)`);
+  } else if (historyIds.size === 0) {
+    console.log(
+      "[automated-sync] LEAGUE_HISTORY_PROVIDER_IDS not set — past seasons skipped",
+    );
   } else {
     console.log("[automated-sync] history archive present — skip");
   }

@@ -145,6 +145,55 @@ export async function fetchAllLeagueMembers(leagueId: string): Promise<{
   return { league, members: [...members.values()] };
 }
 
+/** Final league table rows — use for completed-season private league archives. */
+export async function fetchAllLeagueStandings(leagueId: string): Promise<{
+  league: FplLeagueMeta;
+  rows: Array<{
+    entryId: string;
+    managerName: string;
+    teamName: string;
+    total: number;
+    rank: number;
+  }>;
+}> {
+  const rows = new Map<
+    string,
+    {
+      entryId: string;
+      managerName: string;
+      teamName: string;
+      total: number;
+      rank: number;
+    }
+  >();
+  let league: FplLeagueMeta | null = null;
+  let page = 1;
+
+  while (page <= 50) {
+    const data = await fetchLeagueStandingsPage(leagueId, page);
+    league = data.league;
+    const batch = data.standings.results ?? [];
+    if (batch.length === 0) break;
+
+    for (const row of batch) {
+      rows.set(String(row.entry), {
+        entryId: String(row.entry),
+        managerName: row.player_name,
+        teamName: row.entry_name,
+        total: row.total,
+        rank: row.rank,
+      });
+    }
+    page += 1;
+  }
+
+  if (!league) {
+    throw new Error(`League ${leagueId} not found or inaccessible`);
+  }
+
+  return { league, rows: [...rows.values()] };
+}
+
 export async function fetchEntryHistory(entryId: string): Promise<FplEntryHistory> {
   return fplGet<FplEntryHistory>(`/entry/${entryId}/history/`);
 }

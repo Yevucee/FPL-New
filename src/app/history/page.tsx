@@ -12,9 +12,8 @@ export default async function HistoryIndexPage() {
       <div>
         <h1 className="text-2xl font-bold">Season archive</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Past seasons from official FPL data. Seasons synced during the live
-          year support gameweek-by-gameweek browsing; older seasons show final
-          standings from FPL season totals.
+          Final tables from each season&apos;s Swiss Expert League on FPL. Seasons
+          captured live during the year also support gameweek-by-gameweek browsing.
         </p>
       </div>
 
@@ -22,8 +21,8 @@ export default async function HistoryIndexPage() {
         <div className="rounded-lg border border-slate-200 bg-slate-50 p-6">
           <h2 className="text-lg font-semibold text-slate-800">No archived seasons yet</h2>
           <p className="mt-2 text-sm text-slate-600">
-            Past seasons are imported automatically from official FPL data once
-            your league ID is configured. The first sync usually takes a few hours.
+            Past seasons appear here once each season&apos;s FPL league ID is configured
+            in <code className="text-xs">LEAGUE_HISTORY_PROVIDER_IDS</code> and imported.
             The current live season is on the{" "}
             <Link href="/league" className="font-medium text-swiss-700 hover:underline">
               Standings

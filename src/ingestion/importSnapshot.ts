@@ -109,7 +109,9 @@ async function applySnapshot(
       target: seasons.name,
       set: {
         providerId: snapshot.season.providerId ?? null,
-        ...(mode === "live" ? { state: "active" as const } : { state: "archived-summary" as const }),
+        ...(mode === "live"
+          ? { state: "active" as const }
+          : { state: "archived-summary" as const }),
       },
     })
     .returning();

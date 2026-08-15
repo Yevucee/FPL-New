@@ -1,34 +1,47 @@
 # Historical season data (official FPL)
 
-Past seasons are loaded automatically from **official FPL public API** data.
-No manual import is required in production.
+Past Swiss Expert League tables are imported from **that season's private FPL league ID**.
+FPL creates a new league ID each year when the league renews — the current ID alone
+cannot reconstruct last year's league table.
 
 ## How it works
 
 | When | What happens |
 |------|----------------|
-| `LEAGUE_PROVIDER_ID` set on Railway | Cron runs `job:automated-sync` (gated every 15 min) |
-| First sync | Imports completed seasons from FPL `history.past` (final tables) |
-| Each gameweek | Live GW data synced automatically |
-| After GW deadline | Captain + most-owned enriched from picks API |
+| `LEAGUE_PROVIDER_ID` set | Cron syncs the **current** season (`1004960` for 2026/27) |
+| `LEAGUE_HISTORY_PROVIDER_IDS` set | One-off import of **final league tables** per past season |
+| Each live gameweek | GW-by-GW data synced automatically for the active season |
 | New season starts | Previous live season auto-archived with full GW history |
+
+## Configure past seasons
+
+On Railway (web + sync-cron), add a JSON map of season name → that year's FPL league ID:
+
+```bash
+LEAGUE_HISTORY_PROVIDER_IDS={"2025/26":"PAST_ID_HERE"}
+```
+
+Find each past ID from the FPL league URL (bookmark, email, or admin):
+
+`https://fantasy.premierleague.com/leagues/<PAST_ID>/standings/c`
+
+Then run once in sync-cron:
+
+```bash
+FPL_FORCE_HISTORY_IMPORT=1 FPL_SYNC_FORCE=1 npm run job:automated-sync
+```
+
+This purges incorrect summary archives and re-imports from the configured league IDs.
 
 ## Archive types
 
-1. **Full archive** — captured during the live season via automated sync
-2. **Summary archive** — season-end totals from FPL `past` (completed seasons)
+1. **Full archive** — captured during the live season via automated sync (GW scrolling)
+2. **Summary archive** — final league table from that season's FPL league standings API
 
-## FPL API limits
+## What we do *not* use
 
-FPL creates a **new league ID each season** for private leagues. The old ID only
-shows that year's standings on FPL's site. This app keeps history by:
-
-1. **Summary archives** — season-end totals from each manager's `history.past`
-   (imported automatically on first sync after `LEAGUE_PROVIDER_ID` is set)
-2. **Full archives** — GW-by-GW data only for seasons captured live via cron
-
-FPL does not expose gameweek-by-gameweek league standings for completed seasons.
-Only seasons synced during the live year support GW scrolling.
+Manager career history (`entry/.../history/past`) is **global FPL performance**, not your
+private league table. That approach showed wrong managers and wrong rankings — it has been removed.
 
 ## URLs
 
@@ -36,13 +49,3 @@ Only seasons synced during the live year support GW scrolling.
 |------|---------|
 | `/history` | List archived seasons |
 | `/history/2025-26` | Season view |
-
-## Force re-import (optional)
-
-Only needed if history is missing after automation:
-
-```bash
-FPL_FORCE_HISTORY_IMPORT=1 npm run job:automated-sync
-```
-
-Run in Railway sync-cron shell — not required for normal operation.
