@@ -8,6 +8,7 @@ describe("manualHistoricalEntryForSeason", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]?.managerName).toBe("Dominik");
     expect(rows[0]?.totalPoints).toBe(2211);
+    expect(rows[0]?.teamName).toBe("Harmonstown FC");
   });
 
   it("returns empty for seasons without manual rows", () => {
