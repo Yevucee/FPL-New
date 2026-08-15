@@ -53,9 +53,16 @@ export interface FplEntryHistoryEvent {
   points_on_bench: number;
 }
 
+export interface FplEntryHistoryPast {
+  season_name: string;
+  total_points: number;
+  rank: number;
+  rank_percentage?: string;
+}
+
 export interface FplEntryHistory {
   current: FplEntryHistoryEvent[];
-  past: FplEntryHistoryEvent[];
+  past: FplEntryHistoryPast[];
   chips: Array<{ name: string; event: number }>;
 }
 

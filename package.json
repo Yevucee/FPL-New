@@ -20,7 +20,7 @@
     "job:sync-current": "tsx src/jobs/sync-current.ts",
     "fetch:fpl": "tsx scripts/fetch-fpl-league.ts",
     "sync:fpl": "bash scripts/sync-from-fpl.sh",
-    "import:legacy": "tsx scripts/import-legacy-history.ts"
+    "import:fpl-history": "tsx scripts/import-fpl-history.ts"
   },
   "dependencies": {
     "dotenv": "^16.4.7",

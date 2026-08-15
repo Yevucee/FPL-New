@@ -1,97 +1,72 @@
-# Historical season data
+# Historical season data (official FPL)
 
-Past seasons are imported from the legacy Swiss Expert League Supabase
-export and browsed at `/history`. The live season stays on `/league`.
+Past seasons are loaded from **official FPL public API** endpoints — not from
+legacy databases.
 
-## When to import
+## What FPL provides
 
-You can import archived seasons **before** the new FPL league is renewed. History
-does not depend on `LEAGUE_PROVIDER_ID` — only the import script uses it as
-metadata on the league row.
+| Source | Data available |
+|--------|----------------|
+| `entry/{id}/history/` → `current` | Gameweek-by-gameweek for the **active** season |
+| `entry/{id}/history/` → `past` | **Season-end totals only** for completed seasons |
+| `leagues-classic/{id}/standings/` | Current season league table only |
 
-Once the correct league ID is known:
+FPL does **not** publish gameweek-by-gameweek league standings for seasons that
+have already finished. After rollover, only season totals remain in `past`.
 
-1. Set `LEAGUE_PROVIDER_ID` on Railway (web + sync-cron)
-2. Run `npm run sync:fpl` for the new live season
-3. Past seasons remain available under **History**
+## Two archive modes
 
-## Export from legacy Supabase
+1. **Full archive** (`state = archived`) — captured via `npm run sync:fpl` during
+   the live season. Supports GW picker, awards, and storylines.
+2. **Summary archive** (`state = archived-summary`) — imported from FPL `past`
+   totals via `npm run import:fpl-history`. Final standings only.
 
-In the [Supabase SQL editor](https://supabase.com/dashboard) for project
-`bxkcrzyuiddzqgnflhfw`, run:
+When a new season sync runs, the previous active season is auto-archived with
+full GW data (if you synced through the season).
 
-```sql
-select gw, entry_id, manager_name, team_name, total_points, gw_points, active_chip, transfer_cost
-from league_snapshots
-order by gw, entry_id;
-```
+## Import completed seasons from FPL
 
-Export the result as JSON and save to `data/legacy/league_snapshots.json` in
-this repo (or upload to Railway).
-
-Optional gameweek metadata (deadlines, phase names):
-
-```sql
-select gw, deadline_time, phase, phase_name
-from fpl_gameweeks
-order by gw;
-```
-
-Wrap both in one file:
-
-```json
-{
-  "snapshots": [ ... ],
-  "gameweeks": [ ... ]
-}
-```
-
-Or pass a plain array of snapshot rows — the import script accepts both.
-
-## Import locally
+Requires `LEAGUE_PROVIDER_ID` in `.env` / Railway.
 
 ```bash
-LEGACY_SEASON_NAME=2024/25 \
-LEGACY_SNAPSHOT_FILE=data/legacy/league_snapshots.json \
-npm run import:legacy
+# All completed seasons for current league members
+npm run import:fpl-history
+
+# One season
+FPL_HISTORY_SEASON=2025/26 npm run import:fpl-history
 ```
 
-The season is marked `archived` in Postgres and appears at `/history/2024-25`.
-
-## Import on Railway
-
-1. Upload `league_snapshots.json` (e.g. commit under `data/legacy/` or paste
-   into a shell temp file)
-2. Open the **web** service shell
-3. Run:
+On Railway (web service shell):
 
 ```bash
-LEGACY_SEASON_NAME=2024/25 \
-LEGACY_SNAPSHOT_FILE=data/legacy/league_snapshots.json \
-npm run import:legacy
+npm run import:fpl-history
 ```
 
-### Pull directly from Supabase (alternative)
+Browse at `/history`.
+
+## Live season capture (recommended going forward)
+
+After each gameweek:
 
 ```bash
-LEGACY_SEASON_NAME=2024/25 \
-LEGACY_SUPABASE_URL=https://bxkcrzyuiddzqgnflhfw.supabase.co \
-LEGACY_SUPABASE_SERVICE_ROLE_KEY=<service-role-key> \
-npm run import:legacy
+npm run sync:fpl
 ```
 
-## Multiple seasons
-
-Repeat the import for each season with a different `LEGACY_SEASON_NAME` and
-export file. Seasons sort newest-first on `/history`.
-
-When a new live season starts, ensure its row has `state = active` (default
-from FPL sync). Archived imports set `state = archived` automatically.
+This stores official FPL gameweek data in Postgres. When the next FPL season
+starts and you sync again, the finished season is archived automatically with
+full GW history.
 
 ## URLs
 
 | Path | Purpose |
 |------|---------|
 | `/history` | List archived seasons |
-| `/history/2024-25` | Full season through final GW |
-| `/history/2024-25?gw=12` | Standings through GW12 |
+| `/history/2025-26` | Season view (GW picker if full archive) |
+| `/history/2025-26?gw=12` | Standings through GW12 (full archive only) |
+
+## Limitations
+
+- Past-season GW scrolling is only possible for seasons synced during the live year.
+- FPL `past` imports use current league membership; managers who left the league
+  are not included.
+- Team names in summary imports reflect current FPL team names, not historical names.

@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 
 import { db } from "@/db/client";
 import {
@@ -9,12 +9,14 @@ import {
   seasonEntries,
   seasons,
 } from "@/db/schema";
-import { seasonSlugFromName } from "@/ingestion/legacySnapshots";
+import { seasonSlugFromName } from "@/lib/seasonNaming";
 import { leagueConfig } from "@/lib/leagueConfig";
 import { computeStandings } from "@/metrics/standings";
 import type { EntryInput, ResultInput } from "@/metrics/types";
 
 import { getLeagueOverview, type LeagueOverview } from "./leagueData";
+
+const ARCHIVED_STATES = ["archived", "archived-summary"] as const;
 
 export interface HistorySeasonSummary {
   name: string;
@@ -41,7 +43,10 @@ export async function listHistorySeasons(): Promise<HistorySeasonSummary[]> {
     .from(seasons)
     .innerJoin(seasonEntries, eq(seasonEntries.seasonId, seasons.id))
     .where(
-      and(eq(seasonEntries.leagueId, league.id), eq(seasons.state, "archived")),
+      and(
+        eq(seasonEntries.leagueId, league.id),
+        inArray(seasons.state, [...ARCHIVED_STATES]),
+      ),
     )
     .groupBy(seasons.id, seasons.name)
     .orderBy(desc(seasons.name));

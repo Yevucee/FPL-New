@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 
 import type { LeagueSnapshot } from "@/contracts/snapshot";
 import { db } from "@/db/client";
@@ -78,16 +78,25 @@ async function applySnapshot(
   snapshot: LeagueSnapshot,
   counts: ImportCounts,
 ): Promise<void> {
+  await db
+    .update(seasons)
+    .set({ state: "archived" })
+    .where(and(eq(seasons.state, "active"), ne(seasons.name, snapshot.season.name)));
+
   const [season] = await db
     .insert(seasons)
     .values({
       name: snapshot.season.name,
       providerId: snapshot.season.providerId ?? null,
       startEvent: snapshot.season.startEvent,
+      state: "active",
     })
     .onConflictDoUpdate({
       target: seasons.name,
-      set: { providerId: snapshot.season.providerId ?? null },
+      set: {
+        providerId: snapshot.season.providerId ?? null,
+        state: "active",
+      },
     })
     .returning();
 

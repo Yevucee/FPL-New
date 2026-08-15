@@ -12,8 +12,9 @@ export default async function HistoryIndexPage() {
       <div>
         <h1 className="text-2xl font-bold">Season archive</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Browse past seasons of the Swiss Expert League. Standings, awards, and
-          storylines are preserved gameweek by gameweek.
+          Past seasons from official FPL data. Seasons synced during the live
+          year support gameweek-by-gameweek browsing; older seasons show final
+          standings from FPL season totals.
         </p>
       </div>
 
@@ -21,7 +22,9 @@ export default async function HistoryIndexPage() {
         <div className="rounded-lg border border-slate-200 bg-slate-50 p-6">
           <h2 className="text-lg font-semibold text-slate-800">No archived seasons yet</h2>
           <p className="mt-2 text-sm text-slate-600">
-            Once last season&apos;s data is imported, it will appear here. The current
+            Once your FPL league ID is set, run{" "}
+            <code className="rounded bg-white px-1">npm run import:fpl-history</code>{" "}
+            to pull completed seasons from official FPL entry history. The current
             live season is on the{" "}
             <Link href="/league" className="font-medium text-swiss-700 hover:underline">
               Standings
@@ -29,11 +32,9 @@ export default async function HistoryIndexPage() {
             page.
           </p>
           <p className="mt-3 text-xs text-slate-500">
-            Import command (Railway shell):{" "}
-            <code className="rounded bg-white px-1">
-              LEGACY_SEASON_NAME=2024/25 LEGACY_SNAPSHOT_FILE=data/legacy/league_snapshots.json
-              npm run import:legacy
-            </code>
+            Tip: run <code className="rounded bg-white px-1">npm run sync:fpl</code>{" "}
+            each gameweek during the season so we archive full GW data automatically
+            when the next season starts.
           </p>
         </div>
       ) : (

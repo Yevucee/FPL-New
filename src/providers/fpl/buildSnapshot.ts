@@ -23,7 +23,7 @@ function phaseForDeadline(deadlineIso: string): { phase: number; phaseName: stri
   return { phase: Number(monthIndex), phaseName: month };
 }
 
-function seasonNameFromBootstrap(events: FplBootstrapEvent[]): string {
+export function seasonNameFromBootstrap(events: FplBootstrapEvent[]): string {
   const first = events[0];
   if (!first) return "2026/27";
   const year = new Date(first.deadline_time).getUTCFullYear();

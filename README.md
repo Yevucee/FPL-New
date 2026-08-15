@@ -88,7 +88,7 @@ Ideas queued for a future release:
 | `npm run dev` | Dev server |
 | `npm run fetch:fpl` | Pull public FPL league → `data/league-snapshot.json` |
 | `npm run sync:fpl` | Fetch + import into Postgres |
-| `npm run import:legacy` | Import archived season from legacy Supabase export |
+| `npm run import:fpl-history` | Import completed seasons from official FPL entry history |
 | `npm run job:sync-current` | Import active provider snapshot |
 | `npm run test` | Vitest unit tests |
 
@@ -118,4 +118,4 @@ scripts/        # install, start, fetch-fpl, sync-from-fpl, import-legacy
 data/           # live snapshot + legacy exports
 ```
 
-**Historical data:** see [docs/HISTORICAL_DATA.md](docs/HISTORICAL_DATA.md).
+**Historical data:** see [docs/HISTORICAL_DATA.md](docs/HISTORICAL_DATA.md). Uses official FPL API — full GW history only for seasons synced live; older seasons show final standings from FPL season totals.

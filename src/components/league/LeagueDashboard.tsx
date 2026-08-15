@@ -21,7 +21,17 @@ export function LeagueDashboard({
     <div className="space-y-8">
       <SeasonHeader overview={overview} showLiveBadge={showLiveBadge} />
 
-      {overview.finishedEvents.length > 1 && selectedEvent !== null && (
+      {overview.isSummaryArchive && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          Final standings from official FPL season totals. FPL does not publish
+          gameweek-by-gameweek data for completed seasons — only seasons captured
+          during the live season support GW scrolling.
+        </div>
+      )}
+
+      {!overview.isSummaryArchive &&
+        overview.finishedEvents.length > 1 &&
+        selectedEvent !== null && (
         <GameweekPicker
           events={overview.finishedEvents}
           selected={selectedEvent}
@@ -29,26 +39,30 @@ export function LeagueDashboard({
         />
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <AwardBox
-          title={`Gameweek ${selectedEvent} winner`}
-          card={gameweekWinner}
-          suffix="pts"
-        />
-        <AwardBox
-          title={`Monthly leader — ${monthlyLeader?.phaseName ?? "current month"}`}
-          card={monthlyLeader}
-          suffix="pts"
-        />
-      </div>
+      {!overview.isSummaryArchive && (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <AwardBox
+            title={`Gameweek ${selectedEvent} winner`}
+            card={gameweekWinner}
+            suffix="pts"
+          />
+          <AwardBox
+            title={`Monthly leader — ${monthlyLeader?.phaseName ?? "current month"}`}
+            card={monthlyLeader}
+            suffix="pts"
+          />
+        </div>
+      )}
 
-      {insights && selectedEvent !== null && (
+      {!overview.isSummaryArchive && insights && selectedEvent !== null && (
         <InsightsSection insights={insights} eventNumber={selectedEvent} />
       )}
 
       <section>
         <h2 className="mb-3 text-lg font-semibold">
-          Standings{selectedEvent !== null ? ` through GW${selectedEvent}` : ""}
+          {overview.isSummaryArchive
+            ? "Final standings"
+            : `Standings${selectedEvent !== null ? ` through GW${selectedEvent}` : ""}`}
         </h2>
         <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
           <table className="w-full min-w-[640px] text-left text-sm">
@@ -58,7 +72,9 @@ export function LeagueDashboard({
                 <th className="px-3 py-2">Move</th>
                 <th className="px-3 py-2">Manager</th>
                 <th className="px-3 py-2">Team</th>
-                <th className="px-3 py-2 text-right">GW{selectedEvent}</th>
+                {!overview.isSummaryArchive && (
+                  <th className="px-3 py-2 text-right">GW{selectedEvent}</th>
+                )}
                 <th className="px-3 py-2 text-right">Total</th>
                 <th className="px-3 py-2 text-right">Gap</th>
               </tr>
@@ -72,9 +88,11 @@ export function LeagueDashboard({
                   </td>
                   <td className="px-3 py-2">{row.managerName}</td>
                   <td className="px-3 py-2 text-slate-500">{row.teamName}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">
-                    {row.eventNetPoints}
-                  </td>
+                  {!overview.isSummaryArchive && (
+                    <td className="px-3 py-2 text-right tabular-nums">
+                      {row.eventNetPoints}
+                    </td>
+                  )}
                   <td className="px-3 py-2 text-right font-semibold tabular-nums">
                     {row.totalNetPoints}
                   </td>
