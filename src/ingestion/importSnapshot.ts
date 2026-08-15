@@ -149,6 +149,12 @@ async function applySnapshot(
   // Entries + results
   for (const entry of snapshot.entries) {
     const manager = await upsertManager(entry.managerName);
+    const entryMeta = entry as {
+      overallFplRank?: number | null;
+      careerBestSeason?: string | null;
+      careerBestPoints?: number | null;
+      seasonTransfers?: number | null;
+    };
 
     const [entryRow] = await db
       .insert(seasonEntries)
@@ -160,6 +166,10 @@ async function applySnapshot(
         providerEntryId: entry.providerEntryId,
         teamName: entry.teamName,
         joinEvent: entry.joinEvent,
+        overallFplRank: entryMeta.overallFplRank ?? null,
+        careerBestSeason: entryMeta.careerBestSeason ?? null,
+        careerBestPoints: entryMeta.careerBestPoints ?? null,
+        seasonTransfers: entryMeta.seasonTransfers ?? null,
       })
       .onConflictDoUpdate({
         target: [
@@ -167,7 +177,14 @@ async function applySnapshot(
           seasonEntries.provider,
           seasonEntries.providerEntryId,
         ],
-        set: { teamName: entry.teamName, joinEvent: entry.joinEvent },
+        set: {
+          teamName: entry.teamName,
+          joinEvent: entry.joinEvent,
+          overallFplRank: entryMeta.overallFplRank ?? null,
+          careerBestSeason: entryMeta.careerBestSeason ?? null,
+          careerBestPoints: entryMeta.careerBestPoints ?? null,
+          seasonTransfers: entryMeta.seasonTransfers ?? null,
+        },
       })
       .returning();
 
@@ -177,6 +194,10 @@ async function applySnapshot(
         counts.skipped += 1;
         continue;
       }
+      const resultMeta = r as {
+        captainName?: string | null;
+        captainPoints?: number | null;
+      };
       await db
         .insert(entryEventResults)
         .values({
@@ -188,6 +209,8 @@ async function applySnapshot(
           totalPoints: r.totalPoints,
           benchPoints: r.benchPoints,
           chip: r.chip ?? null,
+          captainName: resultMeta.captainName ?? null,
+          captainPoints: resultMeta.captainPoints ?? null,
           teamValue: r.teamValue ?? null,
           bank: r.bank ?? null,
         })
@@ -200,6 +223,8 @@ async function applySnapshot(
             totalPoints: r.totalPoints,
             benchPoints: r.benchPoints,
             chip: r.chip ?? null,
+            captainName: resultMeta.captainName ?? null,
+            captainPoints: resultMeta.captainPoints ?? null,
             teamValue: r.teamValue ?? null,
             bank: r.bank ?? null,
           },

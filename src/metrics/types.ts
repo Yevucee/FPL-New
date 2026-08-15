@@ -34,6 +34,7 @@ export interface StandingRow {
   rankMovement: number | null;
   gapToLeader: number;
   gapToAbove: number;
+  gwVsAverage?: number | null;
 }
 
 export interface AwardWinner {

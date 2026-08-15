@@ -58,6 +58,13 @@ export function LeagueDashboard({
         <InsightsSection insights={insights} eventNumber={selectedEvent} />
       )}
 
+      {overview.mostOwned && overview.mostOwned.length > 0 && (
+        <MostOwnedSection
+          players={overview.mostOwned}
+          eventNumber={overview.mostOwnedEvent ?? selectedEvent}
+        />
+      )}
+
       <section>
         <h2 className="mb-3 text-lg font-semibold">
           {overview.isSummaryArchive
@@ -75,6 +82,12 @@ export function LeagueDashboard({
                 {!overview.isSummaryArchive && (
                   <th className="px-3 py-2 text-right">GW{selectedEvent}</th>
                 )}
+                {!overview.isSummaryArchive && (
+                  <th className="px-3 py-2 text-right">vs avg</th>
+                )}
+                {overview.isSummaryArchive && (
+                  <th className="px-3 py-2 text-right">FPL rank</th>
+                )}
                 <th className="px-3 py-2 text-right">Total</th>
                 <th className="px-3 py-2 text-right">Gap</th>
               </tr>
@@ -86,11 +99,37 @@ export function LeagueDashboard({
                   <td className="px-3 py-2">
                     <Movement value={row.rankMovement} />
                   </td>
-                  <td className="px-3 py-2">{row.managerName}</td>
+                  <td className="px-3 py-2">
+                    <div>{row.managerName}</div>
+                    {overview.entryIntel[row.entryId]?.careerBestSeason && (
+                      <div className="text-xs text-slate-400">
+                        Best: {overview.entryIntel[row.entryId]?.careerBestSeason} (
+                        {overview.entryIntel[row.entryId]?.careerBestPoints} pts)
+                      </div>
+                    )}
+                  </td>
                   <td className="px-3 py-2 text-slate-500">{row.teamName}</td>
                   {!overview.isSummaryArchive && (
                     <td className="px-3 py-2 text-right tabular-nums">
                       {row.eventNetPoints}
+                    </td>
+                  )}
+                  {!overview.isSummaryArchive && (
+                    <td className="px-3 py-2 text-right tabular-nums text-slate-500">
+                      {row.gwVsAverage === null || row.gwVsAverage === undefined ? (
+                        "—"
+                      ) : row.gwVsAverage > 0 ? (
+                        <span className="text-swiss-600">+{row.gwVsAverage}</span>
+                      ) : row.gwVsAverage < 0 ? (
+                        <span className="text-red-500">{row.gwVsAverage}</span>
+                      ) : (
+                        "0"
+                      )}
+                    </td>
+                  )}
+                  {overview.isSummaryArchive && (
+                    <td className="px-3 py-2 text-right tabular-nums text-slate-500">
+                      {overview.entryIntel[row.entryId]?.overallFplRank?.toLocaleString() ?? "—"}
                     </td>
                   )}
                   <td className="px-3 py-2 text-right font-semibold tabular-nums">
@@ -223,6 +262,14 @@ function InsightsSection({
       label: "Transfer gambler",
       value: `${insights.transferHitsLeader.managerName} (−${insights.transferHitsLeader.value} hits)`,
     },
+    insights.seasonTransferLeader && {
+      label: "Transfer addict (season)",
+      value: `${insights.seasonTransferLeader.managerName} (${insights.seasonTransferLeader.value} moves)`,
+    },
+    insights.captaincyLeader && {
+      label: "Captaincy king",
+      value: `${insights.captaincyLeader.managerName} — ${insights.captaincyLeader.captainName} (${insights.captaincyLeader.value} pts)`,
+    },
   ].filter(Boolean) as Array<{ label: string; value: string }>;
 
   if (cards.length === 0 && insights.formLeaders.length === 0) return null;
@@ -273,6 +320,45 @@ function InsightsSection({
           </ul>
         </div>
       )}
+    </section>
+  );
+}
+
+function MostOwnedSection({
+  players,
+  eventNumber,
+}: {
+  players: Array<{ webName: string; ownerCount: number; ownerPct: number }>;
+  eventNumber: number | null;
+}) {
+  return (
+    <section>
+      <h2 className="mb-3 text-lg font-semibold">
+        Most owned in the league{eventNumber !== null ? ` · GW${eventNumber}` : ""}
+      </h2>
+      <p className="mb-3 text-xs text-slate-500">
+        Squad snapshot after the deadline — fetched separately to keep FPL API usage light.
+      </p>
+      <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+        <table className="w-full text-left text-sm">
+          <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+            <tr>
+              <th className="px-3 py-2">Player</th>
+              <th className="px-3 py-2 text-right">Managers</th>
+              <th className="px-3 py-2 text-right">Ownership</th>
+            </tr>
+          </thead>
+          <tbody>
+            {players.map((player) => (
+              <tr key={player.webName} className="border-t border-slate-100">
+                <td className="px-3 py-2 font-medium">{player.webName}</td>
+                <td className="px-3 py-2 text-right tabular-nums">{player.ownerCount}</td>
+                <td className="px-3 py-2 text-right tabular-nums">{player.ownerPct}%</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </section>
   );
 }

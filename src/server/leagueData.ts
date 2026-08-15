@@ -3,6 +3,7 @@ import { and, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   entryEventResults,
+  eventIntel,
   events,
   leagues,
   managers,
@@ -10,6 +11,7 @@ import {
   seasons,
   syncRuns,
 } from "@/db/schema";
+import type { MostOwnedPlayer } from "@/providers/fpl/mostOwned";
 import { seasonNameFromSlug } from "@/lib/seasonNaming";
 import { leagueConfig } from "@/lib/leagueConfig";
 import { gameweekWinner, monthlyWinner } from "@/metrics/awards";
@@ -26,6 +28,13 @@ export interface AwardCard {
   winners: { entryId: string; managerName: string; teamName: string }[];
 }
 
+export interface EntryIntel {
+  overallFplRank: number | null;
+  careerBestSeason: string | null;
+  careerBestPoints: number | null;
+  seasonTransfers: number | null;
+}
+
 export interface LeagueOverview {
   league: { slug: string; name: string; visibility: string } | null;
   seasonName: string | null;
@@ -36,6 +45,9 @@ export interface LeagueOverview {
   selectedEvent: number | null;
   finishedEvents: number[];
   standings: StandingRow[];
+  entryIntel: Record<string, EntryIntel>;
+  mostOwned: MostOwnedPlayer[] | null;
+  mostOwnedEvent: number | null;
   gameweekWinner: AwardCard | null;
   monthlyLeader: AwardCard | null;
   insights: LeagueInsights | null;
@@ -84,6 +96,9 @@ export async function getLeagueOverview(
     selectedEvent: null,
     finishedEvents: [],
     standings: [],
+    entryIntel: {},
+    mostOwned: null,
+    mostOwnedEvent: null,
     gameweekWinner: null,
     monthlyLeader: null,
     insights: null,
@@ -111,6 +126,10 @@ export async function getLeagueOverview(
       teamName: seasonEntries.teamName,
       joinEvent: seasonEntries.joinEvent,
       seasonId: seasonEntries.seasonId,
+      overallFplRank: seasonEntries.overallFplRank,
+      careerBestSeason: seasonEntries.careerBestSeason,
+      careerBestPoints: seasonEntries.careerBestPoints,
+      seasonTransfers: seasonEntries.seasonTransfers,
     })
     .from(seasonEntries)
     .innerJoin(managers, eq(managers.id, seasonEntries.managerId))
@@ -152,6 +171,8 @@ export async function getLeagueOverview(
       transferCost: entryEventResults.transferCost,
       benchPoints: entryEventResults.benchPoints,
       chip: entryEventResults.chip,
+      captainName: entryEventResults.captainName,
+      captainPoints: entryEventResults.captainPoints,
     })
     .from(entryEventResults)
     .innerJoin(events, eq(events.id, entryEventResults.eventId))
@@ -228,8 +249,62 @@ export async function getLeagueOverview(
     };
   };
 
-  const standings =
+  const entryIntel: Record<string, EntryIntel> = {};
+  const entryMeta = new Map<string, EntryIntel>();
+  for (const e of entryRows) {
+    const intel = {
+      overallFplRank: e.overallFplRank,
+      careerBestSeason: e.careerBestSeason,
+      careerBestPoints: e.careerBestPoints,
+      seasonTransfers: e.seasonTransfers,
+    };
+    entryIntel[e.entryId] = intel;
+    entryMeta.set(e.entryId, intel);
+  }
+
+  const captainByEntry = new Map<string, { name: string; points: number | null }>();
+  if (selectedEvent !== null) {
+    for (const r of resultRows) {
+      if (r.eventNumber !== selectedEvent || !r.captainName) continue;
+      captainByEntry.set(r.entryId, {
+        name: r.captainName,
+        points: r.captainPoints,
+      });
+    }
+  }
+
+  const insights =
+    selectedEvent !== null
+      ? computeLeagueInsights(entries, results, selectedEvent, {
+          entryMeta,
+          captainByEntry,
+        })
+      : null;
+
+  const standingsRaw =
     selectedEvent !== null ? computeStandings(entries, results, selectedEvent) : [];
+  const standings = standingsRaw.map((row) => ({
+    ...row,
+    gwVsAverage:
+      insights?.leagueAverageGw != null
+        ? Math.round((row.eventNetPoints - insights.leagueAverageGw) * 10) / 10
+        : null,
+  }));
+
+  let mostOwned: MostOwnedPlayer[] | null = null;
+  let mostOwnedEvent: number | null = null;
+  if (selectedEvent !== null && !season.state.includes("archived-summary")) {
+    const intelRow = await db.query.eventIntel.findFirst({
+      where: and(
+        eq(eventIntel.seasonId, season.id),
+        eq(eventIntel.eventNumber, selectedEvent),
+      ),
+    });
+    if (intelRow?.mostOwned) {
+      mostOwned = intelRow.mostOwned;
+      mostOwnedEvent = selectedEvent;
+    }
+  }
 
   const gwCard =
     selectedEvent !== null
@@ -246,13 +321,8 @@ export async function getLeagueOverview(
         })
       : null;
 
-  const insights =
-    selectedEvent !== null
-      ? computeLeagueInsights(entries, results, selectedEvent)
-      : null;
-
   const dataMode: LeagueOverview["dataMode"] =
-    season.state === "archived"
+    season.state === "archived" || season.state === "archived-summary"
       ? "archived"
       : latestFinishedEvent === null
         ? "preseason"
@@ -270,6 +340,9 @@ export async function getLeagueOverview(
     selectedEvent,
     finishedEvents: selectableEvents,
     standings,
+    entryIntel,
+    mostOwned,
+    mostOwnedEvent,
     gameweekWinner: gwCard,
     monthlyLeader: monthlyCard,
     insights,

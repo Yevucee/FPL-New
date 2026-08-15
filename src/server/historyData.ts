@@ -23,7 +23,12 @@ export interface HistorySeasonSummary {
   slug: string;
   managerCount: number;
   finalGameweek: number | null;
-  champion: { managerName: string; teamName: string; totalPoints: number } | null;
+  champion: {
+    managerName: string;
+    teamName: string;
+    totalPoints: number;
+    overallFplRank: number | null;
+  } | null;
 }
 
 /**
@@ -81,6 +86,7 @@ async function buildSeasonSummary(
       managerName: managers.displayName,
       teamName: seasonEntries.teamName,
       joinEvent: seasonEntries.joinEvent,
+      overallFplRank: seasonEntries.overallFplRank,
     })
     .from(seasonEntries)
     .innerJoin(managers, eq(managers.id, seasonEntries.managerId))
@@ -143,10 +149,12 @@ async function buildSeasonSummary(
     const standings = computeStandings(entries, results, finalGw);
     const winner = standings[0];
     if (winner) {
+      const winnerMeta = entryRows.find((e) => e.entryId === winner.entryId);
       champion = {
         managerName: winner.managerName,
         teamName: winner.teamName,
         totalPoints: winner.totalNetPoints,
+        overallFplRank: winnerMeta?.overallFplRank ?? null,
       };
     }
   }

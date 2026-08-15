@@ -9,6 +9,7 @@ import {
   type FplBootstrapEvent,
   type FplEntryHistoryEvent,
 } from "./client";
+import { managerMetaFromHistory } from "./managerMeta";
 
 /** Map FPL calendar month to a monthly phase (spec-style phase numbering). */
 function phaseForDeadline(deadlineIso: string): { phase: number; phaseName: string } {
@@ -82,9 +83,21 @@ export async function buildSnapshotFromFpl(leagueId: string): Promise<LeagueSnap
       const chipByEvent = new Map(
         history.chips.map((c) => [c.event, c.name] as const),
       );
-      // `current` holds gameweek rows for this season; `past` is prior seasons summary.
       const rows = history.current ?? [];
       results = rows.map((row) => mapHistoryEvent(row, chipByEvent));
+      const meta = managerMetaFromHistory(history);
+      entries.push({
+        providerEntryId: member.entryId,
+        managerName: member.managerName,
+        teamName: member.teamName,
+        joinEvent: league.start_event,
+        overallFplRank: meta.overallFplRank,
+        careerBestSeason: meta.careerBestSeason,
+        careerBestPoints: meta.careerBestPoints,
+        seasonTransfers: meta.seasonTransfers,
+        results,
+      });
+      continue;
     } catch {
       // Pre-season or brand-new entry — keep with empty results.
     }

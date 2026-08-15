@@ -7,6 +7,7 @@ import {
   sleep,
   type FplEntryHistory,
 } from "./client";
+import { managerMetaFromHistory } from "./managerMeta";
 import { seasonNameFromBootstrap } from "./buildSnapshot";
 
 export interface FplPastSeasonRecord {
@@ -69,12 +70,17 @@ export async function buildPastSeasonSnapshotFromFpl(
     const history = await fetchEntryHistory(member.entryId);
     const past = pastSeasonRecord(history, seasonName);
     if (!past) continue;
+    const meta = managerMetaFromHistory(history, seasonName);
 
     entries.push({
       providerEntryId: member.entryId,
       managerName: member.managerName,
       teamName: member.teamName,
       joinEvent: 1,
+      overallFplRank: meta.overallFplRank,
+      careerBestSeason: meta.careerBestSeason,
+      careerBestPoints: meta.careerBestPoints,
+      seasonTransfers: 0,
       results: [
         {
           eventNumber: finalEvent,

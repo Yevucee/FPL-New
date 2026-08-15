@@ -2,6 +2,7 @@ import { relations } from "drizzle-orm";
 import {
   boolean,
   integer,
+  jsonb,
   pgTable,
   text,
   timestamp,
@@ -70,6 +71,10 @@ export const seasonEntries = pgTable(
     teamName: text("team_name").notNull(),
     joinEvent: integer("join_event").notNull().default(1),
     leaveEvent: integer("leave_event"),
+    overallFplRank: integer("overall_fpl_rank"),
+    careerBestSeason: text("career_best_season"),
+    careerBestPoints: integer("career_best_points"),
+    seasonTransfers: integer("season_transfers"),
   },
   (t) => ({
     uqEntry: unique("uq_season_entry_provider").on(
@@ -118,12 +123,39 @@ export const entryEventResults = pgTable(
     totalPoints: integer("total_points").notNull().default(0),
     benchPoints: integer("bench_points").notNull().default(0),
     chip: text("chip"),
+    captainName: text("captain_name"),
+    captainPoints: integer("captain_points"),
     // Money stored as integer tenths (matching the source), formatted at the edge.
     teamValue: integer("team_value"),
     bank: integer("bank"),
   },
   (t) => ({
     uqResult: unique("uq_result_entry_event").on(t.seasonEntryId, t.eventId),
+  }),
+);
+
+export const eventIntel = pgTable(
+  "event_intel",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    seasonId: uuid("season_id")
+      .notNull()
+      .references(() => seasons.id, { onDelete: "cascade" }),
+    eventNumber: integer("event_number").notNull(),
+    mostOwned: jsonb("most_owned").$type<
+      Array<{
+        elementId: number;
+        webName: string;
+        ownerCount: number;
+        ownerPct: number;
+      }>
+    >(),
+    fetchedAt: timestamp("fetched_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => ({
+    uqIntel: unique("uq_event_intel_season_event").on(t.seasonId, t.eventNumber),
   }),
 );
 
@@ -189,4 +221,5 @@ export type Manager = typeof managers.$inferSelect;
 export type SeasonEntry = typeof seasonEntries.$inferSelect;
 export type EventRow = typeof events.$inferSelect;
 export type EntryEventResult = typeof entryEventResults.$inferSelect;
+export type EventIntel = typeof eventIntel.$inferSelect;
 export type SyncRun = typeof syncRuns.$inferSelect;

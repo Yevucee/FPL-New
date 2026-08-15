@@ -55,6 +55,9 @@ export default async function HistoryIndexPage() {
                     <span className="font-medium text-swiss-700">Champion:</span>{" "}
                     {season.champion.managerName} ({season.champion.teamName}) —{" "}
                     {season.champion.totalPoints} pts
+                    {season.champion.overallFplRank !== null && (
+                      <> · FPL rank {season.champion.overallFplRank.toLocaleString()}</>
+                    )}
                   </p>
                 )}
               </Link>

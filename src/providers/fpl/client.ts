@@ -12,6 +12,7 @@ export interface FplBootstrapEvent {
 
 export interface FplBootstrap {
   events: FplBootstrapEvent[];
+  elements: Array<{ id: number; web_name: string }>;
 }
 
 export interface FplLeagueMeta {
@@ -51,6 +52,23 @@ export interface FplEntryHistoryEvent {
   value: number;
   bank: number;
   points_on_bench: number;
+}
+
+export interface FplPick {
+  element: number;
+  position: number;
+  multiplier: number;
+  is_captain: boolean;
+  is_vice_captain: boolean;
+}
+
+export interface FplPickWithStats extends FplPick {
+  stats?: { total_points?: number };
+}
+
+export interface FplPicksResponse {
+  active_chip: string | null;
+  picks: FplPickWithStats[];
 }
 
 export interface FplEntryHistoryPast {
@@ -131,6 +149,37 @@ export async function fetchEntryHistory(entryId: string): Promise<FplEntryHistor
   return fplGet<FplEntryHistory>(`/entry/${entryId}/history/`);
 }
 
+export async function fetchEntryPicks(
+  entryId: string,
+  eventNumber: number,
+): Promise<FplPicksResponse | null> {
+  const res = await fetch(
+    `${FPL_BASE}/entry/${entryId}/event/${eventNumber}/picks/`,
+    { headers: { "User-Agent": "swiss-expert-league-archive/0.1" } },
+  );
+  if (res.status === 404) return null;
+  if (!res.ok) {
+    throw new Error(`FPL API entry/${entryId}/event/${eventNumber}/picks returned ${res.status}`);
+  }
+  return res.json() as Promise<FplPicksResponse>;
+}
+
 export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+export function playerNameMap(
+  elements: ReadonlyArray<{ id: number; web_name: string }>,
+): Map<number, string> {
+  return new Map(elements.map((e) => [e.id, e.web_name]));
+}
+
+/** Latest gameweek whose deadline has passed (squads locked). */
+export function latestLockedEvent(
+  events: ReadonlyArray<FplBootstrapEvent>,
+  now = Date.now(),
+): number | null {
+  const locked = events.filter((ev) => new Date(ev.deadline_time).getTime() <= now);
+  if (locked.length === 0) return null;
+  return locked[locked.length - 1]!.id;
 }

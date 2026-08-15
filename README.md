@@ -88,7 +88,7 @@ Ideas queued for a future release:
 | `npm run dev` | Dev server |
 | `npm run fetch:fpl` | Pull public FPL league → `data/league-snapshot.json` |
 | `npm run sync:fpl` | Fetch + import into Postgres |
-| `npm run import:fpl-history` | Import completed seasons from official FPL entry history |
+| `npm run enrich:fpl` | Post-deadline squad intel (captain + most owned) |
 | `npm run job:sync-current` | Import active provider snapshot |
 | `npm run test` | Vitest unit tests |
 

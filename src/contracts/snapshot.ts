@@ -28,6 +28,8 @@ export const resultPayloadSchema = z
     totalPoints: z.number().int().default(0),
     benchPoints: z.number().int().nonnegative().default(0),
     chip: z.string().nullable().optional(),
+    captainName: z.string().nullable().optional(),
+    captainPoints: z.number().int().nullable().optional(),
     teamValue: z.number().int().nullable().optional(),
     bank: z.number().int().nullable().optional(),
   })
@@ -39,6 +41,10 @@ export const entryPayloadSchema = z
     managerName: z.string().min(1),
     teamName: z.string().min(1),
     joinEvent: z.number().int().positive().default(1),
+    overallFplRank: z.number().int().nullable().optional(),
+    careerBestSeason: z.string().nullable().optional(),
+    careerBestPoints: z.number().int().nullable().optional(),
+    seasonTransfers: z.number().int().nonnegative().optional(),
     results: z.array(resultPayloadSchema),
   })
   .passthrough();

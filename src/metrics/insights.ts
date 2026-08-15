@@ -35,6 +35,17 @@ export interface FormInsight extends InsightPerson {
   events: number;
 }
 
+export interface EntryMetaInput {
+  seasonTransfers?: number | null;
+  careerBestSeason?: string | null;
+  careerBestPoints?: number | null;
+  overallFplRank?: number | null;
+}
+
+export interface CaptainInsight extends ValueInsight {
+  captainName: string;
+}
+
 export interface LeagueInsights {
   woodenSpoon: ValueInsight | null;
   biggestClimber: RankMovementInsight | null;
@@ -43,6 +54,8 @@ export interface LeagueInsights {
   seasonBestGw: SeasonBestGwInsight | null;
   benchPointsLeader: ValueInsight | null;
   transferHitsLeader: ValueInsight | null;
+  seasonTransferLeader: ValueInsight | null;
+  captaincyLeader: CaptainInsight | null;
   formLeaders: FormInsight[];
   chipsPlayed: ChipInsight[];
 }
@@ -91,6 +104,10 @@ export function computeLeagueInsights(
   entries: ReadonlyArray<EntryInput>,
   results: ReadonlyArray<ResultInput>,
   throughEvent: number,
+  options: {
+    entryMeta?: ReadonlyMap<string, EntryMetaInput>;
+    captainByEntry?: ReadonlyMap<string, { name: string; points: number | null }>;
+  } = {},
 ): LeagueInsights {
   const entryMap = new Map(entries.map((e) => [e.entryId, e]));
   const standings = computeStandings(entries, results, throughEvent);
@@ -170,6 +187,36 @@ export function computeLeagueInsights(
     }
   }
 
+  let seasonTransferLeader: ValueInsight | null = null;
+  if (options.entryMeta) {
+    for (const e of entries) {
+      const transfers = options.entryMeta.get(e.entryId)?.seasonTransfers ?? 0;
+      if (
+        transfers > 0 &&
+        (!seasonTransferLeader || transfers > seasonTransferLeader.value)
+      ) {
+        seasonTransferLeader = { ...person(e.entryId, entryMap), value: transfers };
+      }
+    }
+  }
+
+  let captaincyLeader: CaptainInsight | null = null;
+  if (options.captainByEntry) {
+    for (const [entryId, captain] of options.captainByEntry) {
+      const points = captain.points ?? 0;
+      if (
+        points > 0 &&
+        (!captaincyLeader || points > captaincyLeader.value)
+      ) {
+        captaincyLeader = {
+          ...person(entryId, entryMap),
+          captainName: captain.name,
+          value: points,
+        };
+      }
+    }
+  }
+
   return {
     woodenSpoon,
     biggestClimber: topMovement(standings, "up"),
@@ -178,6 +225,8 @@ export function computeLeagueInsights(
     seasonBestGw,
     benchPointsLeader,
     transferHitsLeader,
+    seasonTransferLeader,
+    captaincyLeader,
     formLeaders,
     chipsPlayed: chipsPlayed.sort((a, b) => b.eventNumber - a.eventNumber),
   };
