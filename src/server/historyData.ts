@@ -11,8 +11,9 @@ import {
 } from "@/db/schema";
 import { leagueHistoryProviderIds } from "@/lib/leagueHistoryConfig";
 import { RECONSTRUCTED_SEASON_PROVIDER_ID } from "@/providers/fpl/buildHistorySnapshot";
-import { seasonSlugFromName } from "@/lib/seasonNaming";
 import { leagueConfig } from "@/lib/leagueConfig";
+import { mergeManualHistoricalEntries } from "@/lib/mergeHistoricalStandings";
+import { seasonSlugFromName } from "@/lib/seasonNaming";
 import { computeStandings } from "@/metrics/standings";
 import type { EntryInput, ResultInput } from "@/metrics/types";
 
@@ -82,7 +83,12 @@ export async function listHistorySeasons(): Promise<HistorySeasonSummary[]> {
       }
     }
 
-    const summary = await buildSeasonSummary(league.id, row.id, row.name);
+    const summary = await buildSeasonSummary(
+      league.id,
+      row.id,
+      row.name,
+      row.providerId === RECONSTRUCTED_SEASON_PROVIDER_ID,
+    );
     summaries.push(summary);
   }
   return summaries;
@@ -103,6 +109,7 @@ async function buildSeasonSummary(
   leagueId: string,
   seasonId: string,
   seasonName: string,
+  isReconstructed = false,
 ): Promise<HistorySeasonSummary> {
   const entryRows = await db
     .select({
@@ -137,6 +144,7 @@ async function buildSeasonSummary(
 
   let champion: HistorySeasonSummary["champion"] = null;
   let podium: HistorySeasonSummary["podium"] = [];
+  let managerCount = entryRows.length;
   if (finalGw !== null && entryRows.length > 0) {
     const phaseByEvent = new Map(
       eventRows.map((ev) => [ev.eventNumber, ev.phase]),
@@ -171,7 +179,22 @@ async function buildSeasonSummary(
       benchPoints: r.benchPoints,
       chip: r.chip,
     }));
-    const standings = computeStandings(entries, results, finalGw);
+
+    let displayEntries = entries;
+    let displayResults = results;
+    if (isReconstructed) {
+      const merged = mergeManualHistoricalEntries(
+        seasonName,
+        entries,
+        results,
+        finalGw,
+      );
+      displayEntries = merged.entries;
+      displayResults = merged.results;
+      managerCount = merged.entries.length;
+    }
+
+    const standings = computeStandings(displayEntries, displayResults, finalGw);
     podium = standings.slice(0, 3).map((row, index) => ({
       place: index + 1,
       managerName: row.managerName,
@@ -193,7 +216,7 @@ async function buildSeasonSummary(
   return {
     name: seasonName,
     slug: seasonSlugFromName(seasonName),
-    managerCount: entryRows.length,
+    managerCount,
     finalGameweek: finalGw,
     champion,
     podium,

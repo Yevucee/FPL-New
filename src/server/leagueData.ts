@@ -15,6 +15,7 @@ import type { MostOwnedPlayer } from "@/providers/fpl/mostOwned";
 import { seasonNameFromSlug } from "@/lib/seasonNaming";
 import { leagueConfig } from "@/lib/leagueConfig";
 import { leagueHistoryProviderIds } from "@/lib/leagueHistoryConfig";
+import { mergeManualHistoricalEntries } from "@/lib/mergeHistoricalStandings";
 import { RECONSTRUCTED_SEASON_PROVIDER_ID } from "@/providers/fpl/buildHistorySnapshot";
 import { buildSelectableEvents, findLiveGameweek } from "@/lib/liveGameweek";
 import { gameweekWinner, monthlyWinner } from "@/metrics/awards";
@@ -249,7 +250,24 @@ export async function getLeagueOverview(
 
   const isLiveGameweek = liveEvent !== null && selectedEvent === liveEvent;
 
-  const nameById = new Map(entries.map((e) => [e.entryId, e]));
+  let displayEntries = entries;
+  let displayResults = results;
+  if (
+    season.state === "archived-summary" &&
+    selectedEvent !== null &&
+    season.providerId === RECONSTRUCTED_SEASON_PROVIDER_ID
+  ) {
+    const merged = mergeManualHistoricalEntries(
+      season.name,
+      entries,
+      results,
+      selectedEvent,
+    );
+    displayEntries = merged.entries;
+    displayResults = merged.results;
+  }
+
+  const nameById = new Map(displayEntries.map((e) => [e.entryId, e]));
   const toCard = (
     winner: ReturnType<typeof gameweekWinner>,
     meta: Partial<AwardCard>,
@@ -293,14 +311,16 @@ export async function getLeagueOverview(
 
   const insights =
     selectedEvent !== null
-      ? computeLeagueInsights(entries, results, selectedEvent, {
+      ? computeLeagueInsights(displayEntries, displayResults, selectedEvent, {
           entryMeta,
           captainByEntry,
         })
       : null;
 
   const standingsRaw =
-    selectedEvent !== null ? computeStandings(entries, results, selectedEvent) : [];
+    selectedEvent !== null
+      ? computeStandings(displayEntries, displayResults, selectedEvent)
+      : [];
   const standings = standingsRaw.map((row) => ({
     ...row,
     gwVsAverage:
@@ -352,7 +372,7 @@ export async function getLeagueOverview(
     seasonState: season.state,
     isSummaryArchive: season.state === "archived-summary",
     isReconstructedArchive: season.providerId === RECONSTRUCTED_SEASON_PROVIDER_ID,
-    registeredManagers: entries.length,
+    registeredManagers: displayEntries.length,
     latestFinishedEvent,
     liveEvent,
     isLiveGameweek,
