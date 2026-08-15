@@ -3,6 +3,7 @@ import "dotenv/config";
 import { sql } from "@/db/client";
 import { importSnapshot } from "@/ingestion/importSnapshot";
 import { leagueConfig } from "@/lib/leagueConfig";
+import { shouldRunAutomatedSync } from "@/lib/syncSchedule";
 import { enrichLeagueIntel } from "@/providers/fpl/enrichIntel";
 import { buildSnapshotFromFpl } from "@/providers/fpl/buildSnapshot";
 
@@ -11,11 +12,21 @@ import { hasArchivedSeasons, importFplHistory } from "./importFplHistory";
 /**
  * Fully automated FPL pipeline for Railway cron — no manual steps.
  *
+ * Cron ticks every 15 minutes; this job skips ticks outside match windows
+ * (live-ish refresh) and off-peak maintenance slots (4× daily UK time).
+ *
  * 1. Sync live season from FPL (standings, chips, transfers, manager meta)
  * 2. Enrich post-deadline intel (captain + most owned) when squads lock
  * 3. Bootstrap history archive once from FPL season totals
  */
 async function main(): Promise<void> {
+  const schedule = shouldRunAutomatedSync();
+  if (!schedule.run) {
+    console.log(`[automated-sync] skipped — ${schedule.reason}`);
+    await sql.end();
+    return;
+  }
+
   const leagueId = leagueConfig.providerId.trim();
   if (!leagueId) {
     console.log(
@@ -25,7 +36,7 @@ async function main(): Promise<void> {
     return;
   }
 
-  console.log(`[automated-sync] league=${leagueId} starting`);
+  console.log(`[automated-sync] league=${leagueId} tier=${schedule.tier} starting`);
 
   const snapshot = await buildSnapshotFromFpl(leagueId);
   const counts = await importSnapshot({

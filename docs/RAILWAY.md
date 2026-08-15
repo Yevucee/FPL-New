@@ -8,13 +8,23 @@ to run sync commands manually.
 | Service | Config | What it does |
 |---------|--------|--------------|
 | **Web** | `railway.toml` | Next.js app — standings, history, API |
-| **Sync cron** | `railway.cron.toml` | `job:automated-sync` every 6 hours |
+| **Sync cron** | `railway.cron.toml` | `job:automated-sync` every 15 min (gated) |
 
 ### Automated sync pipeline (`job:automated-sync`)
+
+Cron ticks every **15 minutes**. The job itself decides whether to call FPL:
+
+| When | Frequency |
+|------|-----------|
+| **Match windows** (UK time) | Every 15 min — Sat/Sun afternoons, Tue–Thu evenings, Fri deadline window |
+| **Off-peak** | 00:00, 06:00, 12:00, 18:00 UK — catch deadlines, history bootstrap, non-match updates |
+| **Other times** | Skipped instantly (no FPL calls) |
 
 1. **Live season** — fetch FPL standings, GW scores, chips, transfers, manager meta
 2. **Post-deadline enrich** — captain picks + most-owned (only after GW deadline)
 3. **History bootstrap** — import past season final tables from FPL (once, then skip)
+
+Force a full run locally: `FPL_SYNC_FORCE=1 npm run job:automated-sync`
 
 ## Setup
 
@@ -50,7 +60,7 @@ Generate a public domain under **Networking**.
 3. **Settings** → **Config file path** → `railway.cron.toml`
 4. Copy the **same variables** as Web (especially `DATABASE_URL`, `LEAGUE_PROVIDER_ID`)
 
-Cron schedule: `0 * * * *` (every hour). Tune in Railway if needed.
+Cron schedule: `*/15 * * * *` (every 15 min, gated inside the job). Tune in Railway if needed.
 
 ### 5. When the league renews
 
@@ -59,7 +69,7 @@ ID from the FPL URL:
 
 `https://fantasy.premierleague.com/leagues/<ID>/standings/c`
 
-Within one cron cycle (~6 hours):
+Within one maintenance or match-window sync:
 
 - Live standings appear on `/league`
 - Past seasons appear on `/history`

@@ -37,7 +37,7 @@ export default function RootLayout({
           </header>
           <main className="mx-auto max-w-5xl px-4 py-8">{children}</main>
           <footer className="mx-auto max-w-5xl px-4 pb-10 pt-4 text-xs text-slate-400">
-            {leagueConfig.displayName} · refreshes hourly from FPL during the season.
+            {leagueConfig.displayName} · refreshes every 15 min during matches from FPL.
             {process.env.FANTASY_PROVIDER_MODE === "fixtures" && (
               <> Currently showing sample data for development.</>
             )}

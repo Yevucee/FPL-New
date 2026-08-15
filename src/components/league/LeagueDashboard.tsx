@@ -24,7 +24,7 @@ export function LeagueDashboard({
       {overview.isLiveGameweek && (
         <div className="rounded-lg border border-swiss-200 bg-swiss-50 px-4 py-3 text-sm text-swiss-900">
           <span className="mr-2 inline-block h-2 w-2 animate-pulse rounded-full bg-red-500 align-middle" />
-          <strong>GW{overview.liveEvent} is live</strong> — scores update hourly from FPL.
+          <strong>GW{overview.liveEvent} is live</strong> — scores update every 15 min during matches.
           {overview.lastSync?.finishedAt && (
             <span className="text-slate-600">
               {" "}
