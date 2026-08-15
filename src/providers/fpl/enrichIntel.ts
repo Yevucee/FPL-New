@@ -41,6 +41,48 @@ function captainFromPicks(
   };
 }
 
+async function refreshCaptainPointsOnly(args: {
+  seasonId: string;
+  eventRowId: string;
+  eventNumber: number;
+  members: Array<{ entryId: string }>;
+  playerNames: ReadonlyMap<number, string>;
+}): Promise<EnrichIntelResult> {
+  let fetched = 0;
+  for (const [index, member] of args.members.entries()) {
+    if (index > 0) await sleep(120);
+    const picksResponse = await fetchEntryPicks(member.entryId, args.eventNumber);
+    if (!picksResponse) continue;
+    fetched += 1;
+
+    const entryRow = await db.query.seasonEntries.findFirst({
+      where: and(
+        eq(seasonEntries.seasonId, args.seasonId),
+        eq(seasonEntries.providerEntryId, member.entryId),
+      ),
+    });
+    if (!entryRow) continue;
+
+    const { name, points } = captainFromPicks(picksResponse.picks, args.playerNames);
+    await db
+      .update(entryEventResults)
+      .set({ captainName: name, captainPoints: points })
+      .where(
+        and(
+          eq(entryEventResults.seasonEntryId, entryRow.id),
+          eq(entryEventResults.eventId, args.eventRowId),
+        ),
+      );
+  }
+
+  return {
+    eventNumber: args.eventNumber,
+    managersFetched: fetched,
+    skipped: false,
+    reason: "live captain refresh",
+  };
+}
+
 /**
  * Fetch squad picks after the GW deadline (rate-limited) to populate captain
  * choices and most-owned players for one locked gameweek.
@@ -56,6 +98,9 @@ export async function enrichLeagueIntel(
     return { eventNumber: null, managersFetched: 0, skipped: true, reason: "no locked gameweek" };
   }
 
+  const bootstrapEvent = bootstrap.events.find((e) => e.id === eventNumber);
+  const isLiveGameweek = Boolean(bootstrapEvent && !bootstrapEvent.finished);
+
   const league = await db.query.leagues.findFirst({
     where: eq(leagues.slug, leagueConfig.slug),
   });
@@ -70,11 +115,21 @@ export async function enrichLeagueIntel(
     return { eventNumber, managersFetched: 0, skipped: true, reason: "no active season" };
   }
 
+  const eventRow = await db.query.events.findFirst({
+    where: and(eq(events.seasonId, season.id), eq(events.eventNumber, eventNumber)),
+  });
+  if (!eventRow) {
+    return { eventNumber, managersFetched: 0, skipped: true, reason: "event not in db" };
+  }
+
+  const { members } = await fetchAllLeagueMembers(leagueId);
+  const playerNames = playerNameMap(bootstrap.elements);
+
   if (!options.force) {
     const existing = await db.query.eventIntel.findFirst({
       where: and(eq(eventIntel.seasonId, season.id), eq(eventIntel.eventNumber, eventNumber)),
     });
-    if (existing) {
+    if (existing && !isLiveGameweek) {
       return {
         eventNumber,
         managersFetched: 0,
@@ -82,19 +137,19 @@ export async function enrichLeagueIntel(
         reason: "already enriched",
       };
     }
+    if (existing && isLiveGameweek) {
+      return refreshCaptainPointsOnly({
+        seasonId: season.id,
+        eventNumber,
+        eventRowId: eventRow.id,
+        members,
+        playerNames,
+      });
+    }
   }
 
-  const { members } = await fetchAllLeagueMembers(leagueId);
-  const playerNames = playerNameMap(bootstrap.elements);
   const squads: number[][] = [];
   let fetched = 0;
-
-  const eventRow = await db.query.events.findFirst({
-    where: and(eq(events.seasonId, season.id), eq(events.eventNumber, eventNumber)),
-  });
-  if (!eventRow) {
-    return { eventNumber, managersFetched: 0, skipped: true, reason: "event not in db" };
-  }
 
   for (const [index, member] of members.entries()) {
     if (index > 0) await sleep(150);

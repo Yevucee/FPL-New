@@ -50,8 +50,7 @@ Generate a public domain under **Networking**.
 3. **Settings** → **Config file path** → `railway.cron.toml`
 4. Copy the **same variables** as Web (especially `DATABASE_URL`, `LEAGUE_PROVIDER_ID`)
 
-Cron schedule: `0 */6 * * *` (every 6 hours). Tune during the season if needed
-(e.g. more frequent on deadline weekends).
+Cron schedule: `0 * * * *` (every hour). Tune in Railway if needed.
 
 ### 5. When the league renews
 

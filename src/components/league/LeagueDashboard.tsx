@@ -21,6 +21,24 @@ export function LeagueDashboard({
     <div className="space-y-8">
       <SeasonHeader overview={overview} showLiveBadge={showLiveBadge} />
 
+      {overview.isLiveGameweek && (
+        <div className="rounded-lg border border-swiss-200 bg-swiss-50 px-4 py-3 text-sm text-swiss-900">
+          <span className="mr-2 inline-block h-2 w-2 animate-pulse rounded-full bg-red-500 align-middle" />
+          <strong>GW{overview.liveEvent} is live</strong> — scores update hourly from FPL.
+          {overview.lastSync?.finishedAt && (
+            <span className="text-slate-600">
+              {" "}
+              Last sync{" "}
+              {new Date(overview.lastSync.finishedAt)
+                .toISOString()
+                .replace("T", " ")
+                .slice(11, 16)}{" "}
+              UTC.
+            </span>
+          )}
+        </div>
+      )}
+
       {overview.isSummaryArchive && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
           Final standings from official FPL season totals. FPL does not publish
@@ -30,11 +48,12 @@ export function LeagueDashboard({
       )}
 
       {!overview.isSummaryArchive &&
-        overview.finishedEvents.length > 1 &&
+        overview.finishedEvents.length > 0 &&
         selectedEvent !== null && (
         <GameweekPicker
           events={overview.finishedEvents}
           selected={selectedEvent}
+          liveEvent={overview.liveEvent}
           basePath={gameweekBasePath}
         />
       )}
@@ -42,7 +61,11 @@ export function LeagueDashboard({
       {!overview.isSummaryArchive && (
         <div className="grid gap-4 sm:grid-cols-2">
           <AwardBox
-            title={`Gameweek ${selectedEvent} winner`}
+            title={
+              overview.isLiveGameweek
+                ? `Gameweek ${selectedEvent} leader (live)`
+                : `Gameweek ${selectedEvent} winner`
+            }
             card={gameweekWinner}
             suffix="pts"
           />
@@ -69,7 +92,9 @@ export function LeagueDashboard({
         <h2 className="mb-3 text-lg font-semibold">
           {overview.isSummaryArchive
             ? "Final standings"
-            : `Standings${selectedEvent !== null ? ` through GW${selectedEvent}` : ""}`}
+            : overview.isLiveGameweek
+              ? `Live standings · GW${selectedEvent}`
+              : `Standings${selectedEvent !== null ? ` through GW${selectedEvent}` : ""}`}
         </h2>
         <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
           <table className="w-full min-w-[640px] text-left text-sm">
@@ -172,7 +197,10 @@ function SeasonHeader({
         <p className="text-sm text-slate-500">
           Season {overview.seasonName}
           {overview.selectedEvent !== null && ` · GW${overview.selectedEvent}`}
-          {showLiveBadge && overview.dataMode === "live" && overview.currentEvent !== null && (
+          {showLiveBadge && overview.dataMode === "live" && overview.isLiveGameweek && (
+            <> · GW{overview.liveEvent} live</>
+          )}
+          {showLiveBadge && overview.dataMode === "live" && !overview.isLiveGameweek && overview.currentEvent !== null && (
             <> · live</>
           )}
           {overview.dataMode === "archived" && <> · archived</>}
@@ -199,10 +227,12 @@ function SeasonHeader({
 function GameweekPicker({
   events,
   selected,
+  liveEvent,
   basePath,
 }: {
   events: number[];
   selected: number;
+  liveEvent: number | null;
   basePath: string;
 }) {
   const latest = events[events.length - 1]!;
@@ -212,7 +242,7 @@ function GameweekPicker({
       {events.map((ev) => (
         <Link
           key={ev}
-          href={ev === latest ? basePath : `${basePath}?gw=${ev}`}
+          href={ev === latest && liveEvent === null ? basePath : `${basePath}?gw=${ev}`}
           className={`rounded-full px-3 py-1 text-sm font-medium ${
             ev === selected
               ? "bg-swiss-600 text-white"
@@ -220,6 +250,9 @@ function GameweekPicker({
           }`}
         >
           GW{ev}
+          {ev === liveEvent && (
+            <span className="ml-1.5 inline-block h-1.5 w-1.5 rounded-full bg-red-400" />
+          )}
         </Link>
       ))}
     </div>

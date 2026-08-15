@@ -6,6 +6,6 @@ buildCommand = "npm ci"
 
 [deploy]
 startCommand = "npm run job:automated-sync"
-# Every 6 hours — live sync, post-deadline enrich, one-time history bootstrap.
-cronSchedule = "0 */6 * * *"
+# Hourly during the season — live-ish GW scores without hammering the FPL API.
+cronSchedule = "0 * * * *"
 restartPolicyType = "NEVER"

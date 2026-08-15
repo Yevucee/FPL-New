@@ -14,6 +14,7 @@ import {
 import type { MostOwnedPlayer } from "@/providers/fpl/mostOwned";
 import { seasonNameFromSlug } from "@/lib/seasonNaming";
 import { leagueConfig } from "@/lib/leagueConfig";
+import { buildSelectableEvents, findLiveGameweek } from "@/lib/liveGameweek";
 import { gameweekWinner, monthlyWinner } from "@/metrics/awards";
 import { computeLeagueInsights, type LeagueInsights } from "@/metrics/insights";
 import { computeStandings } from "@/metrics/standings";
@@ -40,6 +41,8 @@ export interface LeagueOverview {
   seasonName: string | null;
   registeredManagers: number;
   latestFinishedEvent: number | null;
+  liveEvent: number | null;
+  isLiveGameweek: boolean;
   currentEvent: number | null;
   nextEvent: number | null;
   selectedEvent: number | null;
@@ -91,6 +94,8 @@ export async function getLeagueOverview(
     seasonName: null,
     registeredManagers: 0,
     latestFinishedEvent: null,
+    liveEvent: null,
+    isLiveGameweek: false,
     currentEvent: null,
     nextEvent: null,
     selectedEvent: null,
@@ -200,6 +205,15 @@ export async function getLeagueOverview(
     .filter((ev) => ev.finished && ev.checked)
     .map((ev) => ev.eventNumber);
 
+  const gameweekMeta = eventRows.map((ev) => ({
+    eventNumber: ev.eventNumber,
+    deadline: ev.deadline,
+    finished: ev.finished,
+    checked: ev.checked,
+  }));
+
+  const liveEvent = findLiveGameweek(gameweekMeta);
+
   const eventsWithScores = [...new Set(results.map((r) => r.eventNumber))].sort(
     (a, b) => a - b,
   );
@@ -212,24 +226,23 @@ export async function getLeagueOverview(
         : null;
 
   const currentEvent =
+    liveEvent ??
     eventRows.find((ev) => ev.finished === false && ev.checked === false)?.eventNumber ??
     eventRows.find((ev) => !ev.finished)?.eventNumber ??
     latestFinishedEvent;
 
   const nextEvent =
-    eventRows.find((ev) => !ev.finished)?.eventNumber ?? null;
+    eventRows.find((ev) => !ev.finished && (liveEvent === null || ev.eventNumber > liveEvent))
+      ?.eventNumber ?? null;
 
-  const selectableEvents =
-    latestFinishedEvent !== null
-      ? eventRows
-          .map((ev) => ev.eventNumber)
-          .filter((n) => n <= latestFinishedEvent)
-      : [];
+  const selectableEvents = buildSelectableEvents(gameweekMeta, finishedEvents, liveEvent);
 
   const selectedEvent =
     options.throughEvent && selectableEvents.includes(options.throughEvent)
       ? options.throughEvent
-      : latestFinishedEvent;
+      : liveEvent ?? latestFinishedEvent;
+
+  const isLiveGameweek = liveEvent !== null && selectedEvent === liveEvent;
 
   const nameById = new Map(entries.map((e) => [e.entryId, e]));
   const toCard = (
@@ -335,6 +348,8 @@ export async function getLeagueOverview(
     isSummaryArchive: season.state === "archived-summary",
     registeredManagers: entries.length,
     latestFinishedEvent,
+    liveEvent,
+    isLiveGameweek,
     currentEvent,
     nextEvent,
     selectedEvent,
