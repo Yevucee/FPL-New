@@ -133,6 +133,38 @@ export async function needsReconstructedHistoryRefresh(
     if (!seasonRow) missingArchiveSeasons.push(row.season);
   }
 
+  for (const seasonName of new Set(
+    selChampions
+      .map((row) => row.season)
+      .filter((name) => name !== currentSeason && !historyIds.has(name)),
+  )) {
+    for (const manual of manualHistoricalEntryForSeason(seasonName)) {
+      const seasonRow = await db.query.seasons.findFirst({
+        where: eq(seasons.name, seasonName),
+      });
+      if (!seasonRow) continue;
+
+      const stored = await db
+        .select({ providerEntryId: seasonEntries.providerEntryId })
+        .from(seasonEntries)
+        .where(
+          and(
+            eq(seasonEntries.leagueId, league.id),
+            eq(seasonEntries.seasonId, seasonRow.id),
+            eq(seasonEntries.providerEntryId, manual.providerEntryId),
+          ),
+        )
+        .limit(1);
+
+      if (stored.length === 0) {
+        return {
+          needed: true,
+          reason: `former member ${manual.managerName} missing from ${seasonName}`,
+        };
+      }
+    }
+  }
+
   const latestReconstructed = await db
     .select({ id: seasons.id })
     .from(seasons)
