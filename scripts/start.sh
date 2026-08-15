@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Per-boot startup: ensure PostgreSQL is up, then run the Next.js dev server
-# in the foreground (it stays attached for the life of the environment).
+# Per-boot startup: ensure PostgreSQL is up. The Next.js dev server runs in a
+# dedicated terminal (see .cursor/environment.json) so agents can inspect logs.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -9,5 +9,4 @@ source scripts/pg.sh
 
 pg_up
 
-echo "== starting Next.js dev server on http://0.0.0.0:3000 =="
-exec npm run dev
+echo "== PostgreSQL ready; Next.js dev server runs in the next-dev terminal =="

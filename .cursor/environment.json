@@ -1,0 +1,17 @@
+{
+  "name": "FPL League Platform",
+  "install": "bash scripts/install.sh",
+  "start": "bash scripts/start.sh",
+  "terminals": [
+    {
+      "name": "next-dev",
+      "command": "npm run dev"
+    }
+  ],
+  "ports": [
+    {
+      "name": "next",
+      "port": 3000
+    }
+  ]
+}
