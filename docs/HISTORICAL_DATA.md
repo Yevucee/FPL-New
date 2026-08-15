@@ -37,6 +37,15 @@ Limitations:
 When **new players join** the current league, reconstructed archives refresh automatically
 on the next cron sync (member count / roster change detected).
 
+### Former members (left the league)
+
+Add rows to `data/sel-historical-members.json` with either:
+
+- `entryId` — FPL entry ID (team name fetched from FPL), or
+- `seasons` — manual `{ "2015/16": { "totalPoints": 2211, "teamName": "..." } }` per year
+
+Example: Dominik (2nd in 2015/16, 4 pts behind Samuel) is listed there.
+
 ## Import / refresh
 
 ```bash

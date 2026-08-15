@@ -5,10 +5,15 @@ import {
   fetchAllLeagueMembers,
   fetchAllLeagueStandings,
   fetchEntryHistory,
+  fetchEntryProfile,
   sleep,
   type FplEntryHistory,
 } from "./client";
 import { managerMatchesChampion } from "@/lib/selChampions";
+import {
+  manualHistoricalEntryForSeason,
+  selHistoricalMembers,
+} from "@/lib/selHistoricalMembers";
 import { managerMetaFromHistory } from "./managerMeta";
 import { seasonNameFromBootstrap } from "./buildSnapshot";
 
@@ -57,6 +62,13 @@ export async function buildPastSeasonSnapshotFromMemberCareers(
 ): Promise<LeagueSnapshot> {
   const { league, members } = await fetchAllLeagueMembers(currentLeagueId);
   const entries: LeagueSnapshot["entries"] = [];
+  const seenEntryIds = new Set<string>();
+
+  const addEntry = (entry: LeagueSnapshot["entries"][number]) => {
+    if (seenEntryIds.has(entry.providerEntryId)) return;
+    seenEntryIds.add(entry.providerEntryId);
+    entries.push(entry);
+  };
 
   for (const [index, member] of members.entries()) {
     if (index > 0) await sleep(120);
@@ -65,7 +77,7 @@ export async function buildPastSeasonSnapshotFromMemberCareers(
     if (!past) continue;
     const meta = managerMetaFromHistory(history, seasonName);
 
-    entries.push({
+    addEntry({
       providerEntryId: member.entryId,
       managerName: member.managerName,
       teamName: member.teamName,
@@ -81,6 +93,68 @@ export async function buildPastSeasonSnapshotFromMemberCareers(
           grossPoints: past.totalPoints,
           transferCost: 0,
           totalPoints: past.totalPoints,
+          benchPoints: 0,
+          chip: null,
+        },
+      ],
+    });
+  }
+
+  for (const [index, historical] of selHistoricalMembers.entries()) {
+    if (historical.entryId && !seenEntryIds.has(historical.entryId)) {
+      if (index > 0) await sleep(120);
+      try {
+        const history = await fetchEntryHistory(historical.entryId);
+        const past = pastSeasonRecord(history, seasonName);
+        if (past) {
+          const profile = await fetchEntryProfile(historical.entryId);
+          const meta = managerMetaFromHistory(history, seasonName);
+          addEntry({
+            providerEntryId: historical.entryId,
+            managerName: profile.managerName || historical.managerName,
+            teamName: profile.teamName,
+            joinEvent: 1,
+            overallFplRank: past.overallRank,
+            careerBestSeason: meta.careerBestSeason,
+            careerBestPoints: meta.careerBestPoints,
+            seasonTransfers: 0,
+            results: [
+              {
+                eventNumber: finalEvent,
+                netPoints: past.totalPoints,
+                grossPoints: past.totalPoints,
+                transferCost: 0,
+                totalPoints: past.totalPoints,
+                benchPoints: 0,
+                chip: null,
+              },
+            ],
+          });
+        }
+      } catch {
+        // fall through to manual season totals
+      }
+    }
+  }
+
+  for (const manual of manualHistoricalEntryForSeason(seasonName)) {
+    if (seenEntryIds.has(manual.providerEntryId)) continue;
+    addEntry({
+      providerEntryId: manual.providerEntryId,
+      managerName: manual.managerName,
+      teamName: manual.teamName,
+      joinEvent: 1,
+      overallFplRank: null,
+      careerBestSeason: null,
+      careerBestPoints: null,
+      seasonTransfers: 0,
+      results: [
+        {
+          eventNumber: finalEvent,
+          netPoints: manual.totalPoints,
+          grossPoints: manual.totalPoints,
+          transferCost: 0,
+          totalPoints: manual.totalPoints,
           benchPoints: 0,
           chip: null,
         },

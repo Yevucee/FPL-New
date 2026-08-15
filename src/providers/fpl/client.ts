@@ -198,6 +198,21 @@ export async function fetchEntryHistory(entryId: string): Promise<FplEntryHistor
   return fplGet<FplEntryHistory>(`/entry/${entryId}/history/`);
 }
 
+export async function fetchEntryProfile(entryId: string): Promise<{
+  managerName: string;
+  teamName: string;
+}> {
+  const data = await fplGet<{
+    player_first_name: string;
+    player_last_name: string;
+    name: string;
+  }>(`/entry/${entryId}/`);
+  return {
+    managerName: `${data.player_first_name} ${data.player_last_name}`.trim(),
+    teamName: data.name,
+  };
+}
+
 export async function fetchEntryPicks(
   entryId: string,
   eventNumber: number,
