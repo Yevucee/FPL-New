@@ -30,11 +30,14 @@ export default async function HistorySeasonPage({ params, searchParams }: PagePr
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-2 text-sm">
-        <Link href="/history" className="text-swiss-700 hover:underline">
-          History
+        <Link
+          href="/history"
+          className="font-medium text-swiss-700 hover:underline"
+        >
+          Hall of Champions
         </Link>
         <span className="text-slate-300">/</span>
-        <span className="font-medium text-slate-700">{overview.seasonName}</span>
+        <span className="font-semibold text-slate-800">{overview.seasonName}</span>
       </div>
 
       {allSeasons.length > 1 && (
@@ -59,20 +62,22 @@ function SeasonPicker({
 }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <span className="text-sm font-medium text-slate-500">Season:</span>
-      {seasons.map((season) => (
-        <Link
-          key={season.slug}
-          href={`/history/${season.slug}`}
-          className={`rounded-full px-3 py-1 text-sm font-medium ${
-            season.slug === currentSlug
-              ? "bg-swiss-600 text-white"
-              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-          }`}
-        >
-          {season.name}
-        </Link>
-      ))}
+      <span className="text-sm font-semibold text-slate-500">Season</span>
+      <div className="flex flex-wrap gap-1.5">
+        {seasons.map((season) => (
+          <Link
+            key={season.slug}
+            href={`/history/${season.slug}`}
+            className={`rounded-full px-3 py-1 text-sm font-medium transition-colors ${
+              season.slug === currentSlug
+                ? "bg-swiss-600 text-white shadow-sm"
+                : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"
+            }`}
+          >
+            {season.name}
+          </Link>
+        ))}
+      </div>
     </div>
   );
 }

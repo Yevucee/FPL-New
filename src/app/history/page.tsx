@@ -1,24 +1,13 @@
 import Link from "next/link";
 
+import { Badge } from "@/components/ui/Badge";
+import { Card } from "@/components/ui/Card";
 import { selChampions, titleCounts } from "@/lib/selChampions";
 import type { HistoryPodiumEntry, HistorySeasonSummary } from "@/server/historyData";
 import { listHistorySeasons } from "@/server/historyData";
 import { seasonSlugFromName } from "@/lib/seasonNaming";
 
 export const dynamic = "force-dynamic";
-
-function podiumCell(entry: HistoryPodiumEntry | undefined) {
-  if (!entry) {
-    return <span className="text-slate-400">—</span>;
-  }
-  return (
-    <div>
-      <div className="font-medium text-slate-900">{entry.managerName}</div>
-      <div className="text-slate-600">{entry.teamName}</div>
-      <div className="text-xs text-slate-500">{entry.totalPoints} pts</div>
-    </div>
-  );
-}
 
 function mergeSeasonPodiums(archives: HistorySeasonSummary[]) {
   const archiveBySeason = new Map(archives.map((season) => [season.name, season]));
@@ -37,113 +26,151 @@ function mergeSeasonPodiums(archives: HistorySeasonSummary[]) {
   });
 }
 
+function PodiumSlot({
+  place,
+  entry,
+  variant,
+}: {
+  place: 1 | 2 | 3;
+  entry: HistoryPodiumEntry | undefined;
+  variant: "gold" | "silver" | "bronze";
+}) {
+  const medals = { 1: "🥇", 2: "🥈", 3: "🥉" } as const;
+  const variantClass = {
+    gold: "podium-gold",
+    silver: "podium-silver",
+    bronze: "podium-bronze",
+  }[variant];
+
+  return (
+    <div
+      className={`flex flex-1 flex-col rounded-xl border p-4 ${variantClass} ${
+        place === 1 ? "sm:min-h-[120px] sm:scale-[1.02]" : ""
+      }`}
+    >
+      <div className="mb-2 flex items-center justify-between">
+        <span className="text-lg">{medals[place]}</span>
+        <Badge
+          variant={variant === "gold" ? "gold" : variant === "silver" ? "silver" : "bronze"}
+        >
+          {place === 1 ? "1st" : place === 2 ? "2nd" : "3rd"}
+        </Badge>
+      </div>
+      {entry ? (
+        <>
+          <p className="font-bold text-slate-900">{entry.managerName}</p>
+          <p className="text-sm text-slate-600">{entry.teamName}</p>
+          <p className="mt-auto pt-2 text-lg font-bold tabular-nums text-swiss-800">
+            {entry.totalPoints}
+            <span className="text-sm font-medium text-slate-500"> pts</span>
+          </p>
+        </>
+      ) : (
+        <p className="text-sm text-slate-400">—</p>
+      )}
+    </div>
+  );
+}
+
+function SeasonPodiumCard({
+  season,
+  slug,
+  hasFullTable,
+  first,
+  second,
+  third,
+}: {
+  season: string;
+  slug: string;
+  hasFullTable: boolean;
+  first: HistoryPodiumEntry | undefined;
+  second: HistoryPodiumEntry | undefined;
+  third: HistoryPodiumEntry | undefined;
+}) {
+  return (
+    <Card className="transition-shadow hover:shadow-card-hover">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-xl font-bold tracking-tight text-slate-900">{season}</h2>
+        {hasFullTable ? (
+          <Link
+            href={`/history/${slug}`}
+            className="text-sm font-semibold text-swiss-700 hover:underline"
+          >
+            Full table →
+          </Link>
+        ) : (
+          <span className="text-sm text-slate-400">Import pending</span>
+        )}
+      </div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch">
+        <PodiumSlot place={2} entry={second} variant="silver" />
+        <PodiumSlot place={1} entry={first} variant="gold" />
+        <PodiumSlot place={3} entry={third} variant="bronze" />
+      </div>
+    </Card>
+  );
+}
+
 export default async function HistoryIndexPage() {
   const seasons = await listHistorySeasons();
   const titles = titleCounts();
   const podiums = mergeSeasonPodiums(seasons);
+  const maxTitles = Math.max(...titles.map((row) => row.titles), 1);
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold">Season archive</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Use <strong className="font-medium text-slate-700">History</strong> in the top nav, then
-          open any season for the <strong className="font-medium text-slate-700">full league table</strong>.
-          The summary below shows 1st, 2nd, and 3rd for each year.
+      <div className="text-center">
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-swiss-600">
+          Swiss Expert League
+        </p>
+        <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-900">
+          Hall of Champions
+        </h1>
+        <p className="mx-auto mt-2 max-w-lg text-sm text-slate-600">
+          Every season&apos;s podium and a link to the full final table.
         </p>
       </div>
 
-      <section className="rounded-lg border border-slate-200 bg-white p-5">
-        <h2 className="text-lg font-semibold">Podiums by season</h2>
-        <div className="mt-4 overflow-x-auto">
-          <table className="w-full min-w-[720px] text-left text-sm">
-            <thead className="text-xs uppercase tracking-wide text-slate-500">
-              <tr>
-                <th className="px-2 py-2">Season</th>
-                <th className="px-2 py-2">1st</th>
-                <th className="px-2 py-2">2nd</th>
-                <th className="px-2 py-2">3rd</th>
-                <th className="px-2 py-2">Full table</th>
-              </tr>
-            </thead>
-            <tbody>
-              {podiums.map((row) => (
-                <tr key={row.season} className="border-t border-slate-100 align-top">
-                  <td className="px-2 py-3 font-medium">{row.season}</td>
-                  <td className="px-2 py-3">{podiumCell(row.first)}</td>
-                  <td className="px-2 py-3">{podiumCell(row.second)}</td>
-                  <td className="px-2 py-3">{podiumCell(row.third)}</td>
-                  <td className="px-2 py-3">
-                    {row.hasFullTable ? (
-                      <Link
-                        href={`/history/${row.slug}`}
-                        className="font-medium text-swiss-700 hover:underline"
-                      >
-                        View table →
-                      </Link>
-                    ) : (
-                      <span className="text-slate-400">Import pending</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <div className="mt-4 flex flex-wrap gap-3 text-sm">
+      <Card className="bg-gradient-to-br from-swiss-50/80 to-white">
+        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-slate-500">
+          Title count
+        </h2>
+        <ul className="space-y-3">
           {titles.map((row) => (
-            <span
-              key={row.winner}
-              className="rounded-full bg-slate-100 px-3 py-1 text-slate-700"
-            >
-              {row.winner}: {row.titles} title{row.titles === 1 ? "" : "s"}
-            </span>
+            <li key={row.winner}>
+              <div className="mb-1 flex justify-between text-sm">
+                <span className="font-semibold text-slate-900">{row.winner}</span>
+                <span className="font-bold tabular-nums text-swiss-800">
+                  {row.titles}
+                </span>
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-slate-200/80">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-swiss-500 to-swiss-700"
+                  style={{ width: `${(row.titles / maxTitles) * 100}%` }}
+                />
+              </div>
+            </li>
           ))}
-        </div>
-      </section>
+        </ul>
+      </Card>
 
-      {seasons.length === 0 ? (
-        <div className="rounded-lg border border-slate-200 bg-slate-50 p-6">
-          <h2 className="text-lg font-semibold text-slate-800">Full tables importing</h2>
-          <p className="mt-2 text-sm text-slate-600">
-            Podiums above fill in once sync runs. Each season&apos;s complete standings will
-            appear at <code className="text-xs">/history/2024-25</code> etc. The current season
-            is on{" "}
-            <Link href="/league" className="font-medium text-swiss-700 hover:underline">
+      <div className="space-y-6">
+        {podiums.map((row) => (
+          <SeasonPodiumCard key={row.season} {...row} />
+        ))}
+      </div>
+
+      {seasons.length === 0 && (
+        <Card className="border-dashed bg-slate-50/50 text-center">
+          <p className="text-sm text-slate-600">
+            Full tables import automatically after sync. The current season is on{" "}
+            <Link href="/league" className="font-semibold text-swiss-700 hover:underline">
               Standings
             </Link>
             .
           </p>
-        </div>
-      ) : (
-        <section>
-          <h2 className="mb-3 text-lg font-semibold">Browse full tables</h2>
-          <ul className="grid gap-4 sm:grid-cols-2">
-            {seasons.map((season) => (
-              <li key={season.slug}>
-                <Link
-                  href={`/history/${season.slug}`}
-                  className="block rounded-lg border border-slate-200 bg-white p-5 transition hover:border-swiss-300 hover:shadow-sm"
-                >
-                  <h3 className="text-lg font-semibold text-slate-900">{season.name}</h3>
-                  <p className="mt-1 text-sm text-slate-500">
-                    {season.managerCount} managers · full final standings
-                  </p>
-                  {season.podium.length > 0 && (
-                    <ul className="mt-3 space-y-1 text-sm text-slate-700">
-                      {season.podium.map((entry) => (
-                        <li key={entry.place}>
-                          <span className="font-medium text-swiss-700">{entry.place}.</span>{" "}
-                          {entry.managerName} · {entry.teamName} — {entry.totalPoints} pts
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
+        </Card>
       )}
     </div>
   );

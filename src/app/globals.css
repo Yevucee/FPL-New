@@ -1,11 +1,40 @@
+@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  color-scheme: light dark;
+  --font-outfit: "Outfit", system-ui, sans-serif;
 }
 
 body {
-  @apply bg-slate-50 text-slate-900 antialiased;
+  @apply bg-gradient-to-b from-slate-100 to-slate-50 text-slate-900 antialiased;
+}
+
+@layer components {
+  .sticky-col-rank {
+    @apply sticky left-0 z-10 bg-white;
+  }
+
+  .sticky-col-manager {
+    @apply sticky left-10 z-10 bg-white sm:left-12;
+  }
+
+  tr:hover .sticky-col-rank,
+  tr:hover .sticky-col-manager {
+    @apply bg-slate-50;
+  }
+
+  .podium-gold {
+    @apply border-medal-gold/30 bg-gradient-to-br from-amber-50 to-white;
+  }
+
+  .podium-silver {
+    @apply border-medal-silver/40 bg-gradient-to-br from-slate-50 to-white;
+  }
+
+  .podium-bronze {
+    @apply border-medal-bronze/30 bg-gradient-to-br from-orange-50/80 to-white;
+  }
 }
