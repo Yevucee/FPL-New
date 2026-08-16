@@ -48,6 +48,12 @@ export default async function LeaguePage({ searchParams }: PageProps) {
               Preview in-season layout →
             </Link>
             <Link
+              href="/planner/preview"
+              className="inline-flex items-center rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-swiss-700 ring-1 ring-swiss-200 hover:bg-swiss-50"
+            >
+              Preview team planner →
+            </Link>
+            <Link
               href="/history"
               className="inline-flex items-center rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-swiss-700 ring-1 ring-swiss-200 hover:bg-swiss-50"
             >

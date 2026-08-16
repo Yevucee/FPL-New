@@ -9,7 +9,7 @@ export interface MostOwnedPlayer {
 export function computeMostOwned(
   squads: ReadonlyArray<ReadonlyArray<number>>,
   playerNames: ReadonlyMap<number, string>,
-  limit = 10,
+  limit?: number,
 ): MostOwnedPlayer[] {
   if (squads.length === 0) return [];
   const counts = new Map<number, number>();
@@ -20,13 +20,30 @@ export function computeMostOwned(
   }
 
   const total = squads.length;
-  return [...counts.entries()]
+  const ranked = [...counts.entries()]
     .map(([elementId, ownerCount]) => ({
       elementId,
       webName: playerNames.get(elementId) ?? `Player ${elementId}`,
       ownerCount,
       ownerPct: Math.round((ownerCount / total) * 1000) / 10,
     }))
-    .sort((a, b) => b.ownerCount - a.ownerCount || a.webName.localeCompare(b.webName))
+    .sort((a, b) => b.ownerCount - a.ownerCount || a.webName.localeCompare(b.webName));
+
+  return limit === undefined ? ranked : ranked.slice(0, limit);
+}
+
+export function filterDifferentials(
+  players: readonly MostOwnedPlayer[],
+  maxOwners: number,
+  limit: number,
+): MostOwnedPlayer[] {
+  return players
+    .filter((player) => player.ownerCount > 0 && player.ownerCount <= maxOwners)
+    .sort(
+      (a, b) =>
+        a.ownerCount - b.ownerCount ||
+        b.ownerPct - a.ownerPct ||
+        a.webName.localeCompare(b.webName),
+    )
     .slice(0, limit);
 }

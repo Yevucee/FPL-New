@@ -86,9 +86,8 @@ export function InsightsSection({ insights, eventNumber }: InsightsSectionProps)
   const hasGroups =
     movement.length + scoring.length + transfers.length + captaincy.length > 0;
   const hasForm = insights.formLeaders.length > 0;
-  const hasChips = insights.chipsPlayed.length > 0;
 
-  if (!hasGroups && !hasForm && !hasChips) return null;
+  if (!hasGroups && !hasForm) return null;
 
   return (
     <section>
@@ -119,20 +118,6 @@ export function InsightsSection({ insights, eventNumber }: InsightsSectionProps)
               </li>
             ))}
           </ol>
-        </Card>
-      )}
-      {hasChips && (
-        <Card className="mt-3">
-          <CardLabel>Chips played</CardLabel>
-          <ul className="mt-2 space-y-1 text-sm text-slate-700">
-            {insights.chipsPlayed.map((chip) => (
-              <li key={`${chip.entryId}-${chip.eventNumber}`}>
-                <span className="font-medium text-slate-500">GW{chip.eventNumber}</span> ·{" "}
-                {chip.managerName} ·{" "}
-                <span className="font-semibold text-swiss-800">{chip.chip}</span>
-              </li>
-            ))}
-          </ul>
         </Card>
       )}
     </section>

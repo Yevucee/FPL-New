@@ -15,6 +15,7 @@ import type { MostOwnedPlayer } from "@/providers/fpl/mostOwned";
 import { seasonNameFromSlug } from "@/lib/seasonNaming";
 import { leagueConfig } from "@/lib/leagueConfig";
 import { leagueHistoryProviderIds } from "@/lib/leagueHistoryConfig";
+import { MOST_OWNED_PUBLIC_LIMIT } from "@/lib/mostOwnedLimits";
 import { mergeManualHistoricalEntries } from "@/lib/mergeHistoricalStandings";
 import { RECONSTRUCTED_SEASON_PROVIDER_ID } from "@/providers/fpl/buildHistorySnapshot";
 import { buildSelectableEvents, findLiveGameweek } from "@/lib/liveGameweek";
@@ -339,7 +340,7 @@ export async function getLeagueOverview(
       ),
     });
     if (intelRow?.mostOwned) {
-      mostOwned = intelRow.mostOwned;
+      mostOwned = intelRow.mostOwned.slice(0, MOST_OWNED_PUBLIC_LIMIT);
       mostOwnedEvent = selectedEvent;
     }
   }

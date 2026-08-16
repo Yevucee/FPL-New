@@ -8,7 +8,8 @@ PostgreSQL, Drizzle ORM, and Zod, targeting Railway.
 
 - **Live standings** with gameweek picker (once the season is underway)
 - **Gameweek winner** and **monthly leader** awards
-- **League storylines** — wooden spoon, biggest climber/faller, form table, chips played, bench hoarder, transfer gambler, season-best GW
+- **League storylines** — wooden spoon, biggest climber/faller, form table, bench hoarder, transfer gambler, season-best GW
+- **Private planner** (`/planner`) — chips remaining/played, extended ownership, differentials, captain picks
 - **Pre-season view** — registered manager count before GW1
 - JSON API at `/api/v1/league/standings`
 
@@ -64,6 +65,8 @@ Ideas queued for a future release:
 | Path | Purpose |
 |---|---|
 | `/league` | Standings, awards, league storylines |
+| `/league/preview` | In-season layout preview (sample GW data) |
+| `/planner` | Private team planner — chips, ownership, captains |
 | `/league?gw=3` | Standings through GW3 |
 | `/history` | Archived seasons list |
 | `/history/2024-25` | Past season with GW picker |
