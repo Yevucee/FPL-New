@@ -222,3 +222,79 @@ export async function activeSeasonId(): Promise<string | null> {
   const season = await db.query.seasons.findFirst({ where: eq(seasons.state, "active") });
   return season?.id ?? null;
 }
+
+export interface ReferenceScreenshotMeta {
+  hasScreenshot: boolean;
+  mime: string | null;
+  uploadedAt: string | null;
+  label: string | null;
+}
+
+export async function getReferenceScreenshotMeta(
+  profileId: string,
+): Promise<ReferenceScreenshotMeta> {
+  const profile = await db.query.plannerProfiles.findFirst({
+    where: eq(plannerProfiles.id, profileId),
+    columns: {
+      referenceScreenshotBase64: true,
+      referenceScreenshotMime: true,
+      referenceScreenshotAt: true,
+      referenceScreenshotLabel: true,
+    },
+  });
+  return {
+    hasScreenshot: Boolean(profile?.referenceScreenshotBase64),
+    mime: profile?.referenceScreenshotMime ?? null,
+    uploadedAt: profile?.referenceScreenshotAt?.toISOString() ?? null,
+    label: profile?.referenceScreenshotLabel ?? null,
+  };
+}
+
+export async function getReferenceScreenshotData(profileId: string): Promise<{
+  base64: string;
+  mime: string;
+} | null> {
+  const profile = await db.query.plannerProfiles.findFirst({
+    where: eq(plannerProfiles.id, profileId),
+    columns: {
+      referenceScreenshotBase64: true,
+      referenceScreenshotMime: true,
+    },
+  });
+  if (!profile?.referenceScreenshotBase64 || !profile.referenceScreenshotMime) return null;
+  return {
+    base64: profile.referenceScreenshotBase64,
+    mime: profile.referenceScreenshotMime,
+  };
+}
+
+export async function saveReferenceScreenshot(args: {
+  profileId: string;
+  base64: string;
+  mime: string;
+  label?: string | null;
+}) {
+  await db
+    .update(plannerProfiles)
+    .set({
+      referenceScreenshotBase64: args.base64,
+      referenceScreenshotMime: args.mime,
+      referenceScreenshotAt: new Date(),
+      referenceScreenshotLabel: args.label ?? "FPL squad screenshot",
+      updatedAt: new Date(),
+    })
+    .where(eq(plannerProfiles.id, args.profileId));
+}
+
+export async function clearReferenceScreenshot(profileId: string) {
+  await db
+    .update(plannerProfiles)
+    .set({
+      referenceScreenshotBase64: null,
+      referenceScreenshotMime: null,
+      referenceScreenshotAt: null,
+      referenceScreenshotLabel: null,
+      updatedAt: new Date(),
+    })
+    .where(eq(plannerProfiles.id, profileId));
+}

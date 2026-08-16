@@ -362,5 +362,13 @@ export function buildPreviewPlannerWorkspace(): PlannerWorkspace {
       },
     ],
     elements,
+    referenceScreenshot: {
+      hasScreenshot: false,
+      mime: null,
+      uploadedAt: null,
+      label: null,
+      imagePath: null,
+    },
+    visionParseAvailable: false,
   };
 }

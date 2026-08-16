@@ -17,6 +17,8 @@ import { RivalsTab } from "./tabs/RivalsTab";
 import { ChipsTab } from "./tabs/ChipsTab";
 import { PlayersTab } from "./tabs/PlayersTab";
 import { SquadEditModal } from "./SquadEditModal";
+import { ScreenshotSquadModal } from "./ScreenshotSquadModal";
+import { ScreenshotImportPanel } from "./ScreenshotImportPanel";
 
 interface PlannerWorkspaceViewProps {
   workspace: PlannerWorkspace;
@@ -30,6 +32,7 @@ export function PlannerWorkspaceView({
   lockForm,
 }: PlannerWorkspaceViewProps) {
   const [editOpen, setEditOpen] = useState(false);
+  const [screenshotOpen, setScreenshotOpen] = useState(false);
 
   return (
     <div className="space-y-6">
@@ -37,6 +40,13 @@ export function PlannerWorkspaceView({
         workspace={workspace}
         lockForm={
           <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setScreenshotOpen(true)}
+              className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-swiss-800 ring-1 ring-swiss-200 hover:bg-swiss-50"
+            >
+              Import screenshot
+            </button>
             <button
               type="button"
               onClick={() => setEditOpen(true)}
@@ -49,6 +59,8 @@ export function PlannerWorkspaceView({
         }
       />
 
+      <ScreenshotImportPanel workspace={workspace} onOpenImport={() => setScreenshotOpen(true)} />
+
       <PlannerTabs active={activeTab} />
 
       {activeTab === "overview" && <OverviewTab workspace={workspace} />}
@@ -60,6 +72,10 @@ export function PlannerWorkspaceView({
 
       {editOpen && (
         <SquadEditModal workspace={workspace} onClose={() => setEditOpen(false)} />
+      )}
+
+      {screenshotOpen && (
+        <ScreenshotSquadModal workspace={workspace} onClose={() => setScreenshotOpen(false)} />
       )}
     </div>
   );

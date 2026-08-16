@@ -52,11 +52,14 @@ import {
   getActiveSquad,
   getOrCreateProfile,
   getProfileSettings,
+  getReferenceScreenshotMeta,
   getWatchlist,
   listScenarios,
   saveSquad,
   squadPlayersFromRows,
+  type ReferenceScreenshotMeta,
 } from "./plannerRepository";
+import { isVisionParseAvailable } from "@/planner/screenshotParse";
 
 export interface PlannerWorkspace {
   isPreview: boolean;
@@ -124,6 +127,10 @@ export interface PlannerWorkspace {
   };
   scenarios: ScenarioSummary[];
   elements: Map<number, PlannerElement>;
+  referenceScreenshot: ReferenceScreenshotMeta & {
+    imagePath: string | null;
+  };
+  visionParseAvailable: boolean;
 }
 
 function enrichSquadPlayers(args: {
@@ -192,12 +199,11 @@ export async function buildPlannerWorkspace(options?: {
   const lastSync = await lastSuccessfulSync();
 
   if (!entryId) {
-    return emptyWorkspace({
-      setupRequired: true,
-      setupMessage:
-        "Set PLANNER_FPL_ENTRY_ID in your environment to load Samuel's squad and highlight him across the planner.",
+    return buildManualOnlyWorkspace({
       overview,
       lastSync,
+      setupMessage:
+        "No FPL entry ID configured — upload a screenshot and build your private draft squad below.",
     });
   }
 
@@ -538,6 +544,7 @@ export async function buildPlannerWorkspace(options?: {
   }));
 
   const watchlist = await getWatchlist(profile.id);
+  const screenshotMeta = await getReferenceScreenshotMeta(profile.id);
 
   return {
     isPreview: false,
@@ -603,6 +610,172 @@ export async function buildPlannerWorkspace(options?: {
     },
     scenarios,
     elements,
+    referenceScreenshot: {
+      ...screenshotMeta,
+      imagePath: screenshotMeta.hasScreenshot ? "/api/planner/reference-screenshot" : null,
+    },
+    visionParseAvailable: isVisionParseAvailable(),
+  };
+}
+
+async function buildManualOnlyWorkspace(args: {
+  overview: PlannerOverview | null;
+  lastSync: string | null;
+  setupMessage: string;
+}): Promise<PlannerWorkspace> {
+  const season = await db.query.seasons.findFirst({
+    where: eq(seasons.state, "active"),
+  });
+
+  let elements = new Map<number, PlannerElement>();
+  let fixturesByTeam = new Map<number, import("@/planner/types").PlannerFixture[]>();
+  let nextDeadline: string | null = null;
+  let dataState: PlannerDataState = "preseason";
+
+  try {
+    const bootstrap = await fetchBootstrap();
+    elements = buildElementCatalog(bootstrap.elements, bootstrap.teams);
+    const fixtures = await fetchFixtures();
+    fixturesByTeam = buildFixturesByTeam(fixtures, bootstrap.teams, 1);
+    nextDeadline = bootstrap.events.find((e) => e.is_next)?.deadline_time ?? null;
+  } catch {
+    dataState = "partial";
+  }
+
+  let profileId: string | null = null;
+  let settings = DEFAULT_PLANNER_SETTINGS;
+  let squadPlayers: SquadPlayer[] = [];
+  let screenshotMeta: ReferenceScreenshotMeta = {
+    hasScreenshot: false,
+    mime: null,
+    uploadedAt: null,
+    label: null,
+  };
+  let scenarios: ScenarioSummary[] = [];
+  let watchlistIds: number[] = [];
+
+  if (season) {
+    const profile = await getOrCreateProfile(season.id, null);
+    profileId = profile.id;
+    settings = await getProfileSettings(profile.id);
+    screenshotMeta = await getReferenceScreenshotMeta(profile.id);
+    const draft = await getActiveSquad(profile.id, "draft");
+    if (draft && draft.players.length > 0) {
+      squadPlayers = squadPlayersFromRows(draft.players);
+    }
+    scenarios = (await listScenarios(profile.id)).map((s) => ({
+      id: s.id,
+      name: s.name,
+      targetEventNumber: s.targetEventNumber,
+      chip: s.chip,
+      transferCount: 0,
+      updatedAt: s.updatedAt.toISOString(),
+    }));
+    watchlistIds = (await getWatchlist(profile.id)).map((w) => w.elementId);
+  }
+
+  const ownershipMap = new Map(
+    (args.overview?.mostOwned ?? []).map((p) => [p.elementId, { count: p.ownerCount, pct: p.ownerPct }]),
+  );
+
+  const enriched = enrichSquadPlayers({
+    players: squadPlayers,
+    elements,
+    ownership: ownershipMap,
+    points: new Map(),
+    fixturesByTeam,
+  });
+
+  const draftRow = season && profileId ? await getActiveSquad(profileId, "draft") : null;
+  const bankTenths = draftRow?.bankOverrideTenths ?? draftRow?.bankTenths ?? null;
+  const freeTransfers = draftRow?.freeTransfersOverride ?? draftRow?.freeTransfers ?? null;
+
+  const validation = validateSquad({
+    players: squadPlayers,
+    elements,
+    bankTenths,
+  });
+
+  const templateCoveragePct = computeTemplateCoverageScore(enriched, args.overview?.mostOwned ?? []);
+  const uniqueness = computeUniquenessScore(enriched);
+
+  return {
+    isPreview: false,
+    setupRequired: squadPlayers.length === 0,
+    setupMessage: args.setupMessage,
+    header: {
+      title: "Private Team Planner",
+      seasonName: season?.name ?? args.overview?.seasonName ?? null,
+      currentEvent: args.overview?.eventNumber ?? null,
+      nextDeadline,
+      teamName: null,
+      sourceEventNumber: null,
+      lastSyncAt: args.lastSync,
+      dataState,
+      isDraft: squadPlayers.length > 0,
+      samuelEntryId: null,
+    },
+    overview: args.overview,
+    settings,
+    squad: enriched,
+    squadKind: squadPlayers.length > 0 ? "draft" : "manual",
+    squadValidation: validation,
+    summary: squadSummary({
+      squad: enriched,
+      bankTenths,
+      bankIsEstimated: bankTenths == null,
+      freeTransfers,
+      hitsPlanned: 0,
+      chipsRemaining: 0,
+      horizon: settings.planningHorizon,
+      fixturesByTeam,
+      templateCoverage: templateCoveragePct,
+      uniqueness,
+    }),
+    rating: computeSquadRating({
+      squad: enriched,
+      fixturesByTeam,
+      horizon: settings.planningHorizon,
+      templateCoverage: templateCoveragePct,
+      uniqueness,
+    }),
+    insights: [],
+    templateCoverage: buildTemplateCoverage({
+      mostOwned: args.overview?.mostOwned ?? [],
+      elements,
+      samuelSquad: enriched,
+      captainCounts: new Map(),
+      fixturesByTeam,
+    }),
+    templateGaps: [],
+    differentials: [],
+    threatsAndLevers: { threats: [], levers: [] },
+    transfers: { suggestions: [], comparisons: [], formula: PLANNER_SCORE_FORMULA },
+    selection: {
+      recommended: recommendStartingXI(enriched),
+      captainMatrix: [],
+      bench: benchRecommendation({
+        squad: enriched,
+        recommended: recommendStartingXI(enriched),
+      }),
+    },
+    rivals: [],
+    chips: {
+      samuelStatus: null,
+      guidance: [],
+      retentionPct: {},
+    },
+    players: {
+      catalog: [...elements.values()],
+      watchlist: watchlistIds,
+    },
+    scenarios,
+    elements,
+    referenceScreenshot: {
+      ...screenshotMeta,
+      imagePath: screenshotMeta.hasScreenshot ? "/api/planner/reference-screenshot" : null,
+    },
+    visionParseAvailable: isVisionParseAvailable(),
   };
 }
 
@@ -672,6 +845,14 @@ function emptyWorkspace(args: {
     players: { catalog: [], watchlist: [] },
     scenarios: [],
     elements: new Map(),
+    referenceScreenshot: {
+      hasScreenshot: false,
+      mime: null,
+      uploadedAt: null,
+      label: null,
+      imagePath: null,
+    },
+    visionParseAvailable: false,
   };
 }
 

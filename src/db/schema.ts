@@ -239,6 +239,10 @@ export const plannerProfiles = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
+    referenceScreenshotBase64: text("reference_screenshot_base64"),
+    referenceScreenshotMime: text("reference_screenshot_mime"),
+    referenceScreenshotAt: timestamp("reference_screenshot_at", { withTimezone: true }),
+    referenceScreenshotLabel: text("reference_screenshot_label"),
   },
   (t) => ({
     uqSeason: unique("uq_planner_profile_season").on(t.seasonId),
