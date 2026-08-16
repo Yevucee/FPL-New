@@ -1,13 +1,28 @@
+import { Suspense } from "react";
+import { redirect } from "next/navigation";
 import Link from "next/link";
 
-import { PlannerDashboard } from "@/components/planner/PlannerDashboard";
+import { logoutPlannerAction } from "@/app/planner/actions";
+import { PlannerWorkspaceView } from "@/components/planner/PlannerWorkspaceView";
+import { parsePlannerTab } from "@/components/planner/PlannerTabs";
 import { Badge } from "@/components/ui/Badge";
-import { previewPlannerOverview } from "@/lib/previewPlannerOverview";
+import { buildPreviewPlannerWorkspace } from "@/lib/previewPlannerWorkspace";
+import { isPlannerAuthenticated, plannerConfigured } from "@/lib/plannerAuth";
 
 export const dynamic = "force-dynamic";
 
-export default function PlannerPreviewPage() {
-  const overview = previewPlannerOverview();
+interface PreviewPageProps {
+  searchParams: Promise<{ tab?: string }>;
+}
+
+export default async function PlannerPreviewPage({ searchParams }: PreviewPageProps) {
+  if (plannerConfigured() && !(await isPlannerAuthenticated())) {
+    redirect("/planner/login?next=/planner/preview");
+  }
+
+  const params = await searchParams;
+  const activeTab = parsePlannerTab(params.tab);
+  const workspace = buildPreviewPlannerWorkspace();
 
   return (
     <div className="space-y-6">
@@ -19,9 +34,8 @@ export default function PlannerPreviewPage() {
               <span className="text-sm font-medium text-slate-600">Sample data · GW12</span>
             </div>
             <p className="mt-1 text-sm text-slate-600">
-              Private planner layout with chips, ownership, and captain intel. Set{" "}
-              <code className="rounded bg-white px-1 text-xs">PLANNER_SECRET</code> on Railway
-              for the live version at <code className="rounded bg-white px-1 text-xs">/planner</code>.
+              Full planner layout with sample squad, transfers, and league intel. All figures are
+              labelled preview data.
             </p>
           </div>
           <Link
@@ -33,7 +47,24 @@ export default function PlannerPreviewPage() {
         </div>
       </div>
 
-      <PlannerDashboard overview={overview} />
+      <Suspense fallback={<div className="text-slate-600">Loading…</div>}>
+        <PlannerWorkspaceView
+          workspace={workspace}
+          activeTab={activeTab}
+          lockForm={
+            plannerConfigured() ? (
+              <form action={logoutPlannerAction}>
+                <button
+                  type="submit"
+                  className="rounded-full bg-white px-4 py-2 text-sm font-medium text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"
+                >
+                  Lock
+                </button>
+              </form>
+            ) : undefined
+          }
+        />
+      </Suspense>
     </div>
   );
 }
