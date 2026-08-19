@@ -13,7 +13,7 @@ async function main(): Promise<void> {
   console.log(`[sync-current] provider=${provider.name}`);
   const counts = await importSnapshot(provider);
   console.log(
-    `[sync-current] done inserted=${counts.inserted} updated=${counts.updated} skipped=${counts.skipped} failed=${counts.failed}`,
+    `[sync-current] done inserted=${counts.inserted} updated=${counts.updated} removed=${counts.removed} skipped=${counts.skipped} failed=${counts.failed}`,
   );
   await sql.end();
 }
