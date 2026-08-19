@@ -1,4 +1,4 @@
-import { and, eq, ne } from "drizzle-orm";
+import { and, eq, ne, notInArray } from "drizzle-orm";
 
 import type { LeagueSnapshot } from "@/contracts/snapshot";
 import { db } from "@/db/client";
@@ -18,6 +18,8 @@ export interface ImportCounts {
   updated: number;
   skipped: number;
   failed: number;
+  /** Live imports only — managers no longer in the FPL league snapshot. */
+  removed: number;
 }
 
 export type ImportSnapshotMode = "live" | "history";
@@ -51,7 +53,13 @@ export async function importSnapshot(
     })
     .returning();
 
-  const counts: ImportCounts = { inserted: 0, updated: 0, skipped: 0, failed: 0 };
+  const counts: ImportCounts = {
+    inserted: 0,
+    updated: 0,
+    skipped: 0,
+    failed: 0,
+    removed: 0,
+  };
 
   try {
     const snapshot = await provider.getLeagueSnapshot();
@@ -251,6 +259,23 @@ async function applySnapshot(
         });
       counts.updated += 1;
     }
+  }
+
+  // Drop managers who left the league (or stale dev/fixture rows). Upserts above
+  // still add new joiners on every sync — this only removes IDs absent from FPL.
+  if (mode === "live" && snapshot.entries.length > 0) {
+    const currentEntryIds = snapshot.entries.map((entry) => entry.providerEntryId);
+    const removed = await db
+      .delete(seasonEntries)
+      .where(
+        and(
+          eq(seasonEntries.seasonId, season!.id),
+          eq(seasonEntries.leagueId, league!.id),
+          notInArray(seasonEntries.providerEntryId, currentEntryIds),
+        ),
+      )
+      .returning({ id: seasonEntries.id });
+    counts.removed = removed.length;
   }
 }
 

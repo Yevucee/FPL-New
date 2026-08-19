@@ -45,7 +45,7 @@ async function main(): Promise<void> {
     getLeagueSnapshot: async () => snapshot,
   });
   console.log(
-    `[automated-sync] live season: ${snapshot.entries.length} managers, updated=${counts.updated}`,
+    `[automated-sync] live season: ${snapshot.entries.length} managers, updated=${counts.updated}, removed=${counts.removed}`,
   );
 
   const enrich = await enrichLeagueIntel(leagueId);
