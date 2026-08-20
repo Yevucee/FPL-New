@@ -41,10 +41,11 @@ on the next cron sync (member count / roster change detected).
 
 Add rows to `data/sel-historical-members.json` with either:
 
-- `entryId` — FPL entry ID (team name fetched from FPL), or
-- `seasons` — manual `{ "2015/16": { "totalPoints": 2211, "teamName": "..." } }` per year
+- `entryId` — FPL entry ID (season totals fetched from FPL `history.past` when the manager is not in the current league), or
+- `seasons` — manual `{ "2015/16": { "totalPoints": 2211, "teamName": "..." } }` per year when no FPL entry exists
 
-Example: Dominik (2nd in 2015/16, 4 pts behind Samuel) is listed there.
+Example: Dominik uses entry `6348284` — FPL confirms his 2015/16 total (2211 pts, Harmonstown FC).
+When he rejoins the league, reconstructed archives use live FPL data automatically.
 
 ## Import / refresh
 

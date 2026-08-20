@@ -1,3 +1,4 @@
+import { managerMatchesChampion } from "@/lib/selChampions";
 import { manualHistoricalEntryForSeason } from "@/lib/selHistoricalMembers";
 import type { EntryInput, ResultInput } from "@/metrics/types";
 
@@ -26,6 +27,13 @@ export function mergeManualHistoricalEntries(
   for (const manual of manualRows) {
     if (existingNames.has(manual.managerName.toLowerCase())) continue;
     if (existingIds.has(manual.providerEntryId)) continue;
+    if (
+      mergedEntries.some((entry) =>
+        managerMatchesChampion(entry.managerName, manual.managerName),
+      )
+    ) {
+      continue;
+    }
 
     mergedEntries.push({
       entryId: manual.providerEntryId,

@@ -1,17 +1,24 @@
 import { describe, expect, it } from "vitest";
 
-import { manualHistoricalEntryForSeason } from "./selHistoricalMembers";
+import {
+  historicalMemberIds,
+  manualHistoricalEntryForSeason,
+  selHistoricalMembers,
+} from "./selHistoricalMembers";
 
 describe("manualHistoricalEntryForSeason", () => {
-  it("includes Dominik for 2015/16", () => {
-    const rows = manualHistoricalEntryForSeason("2015/16");
-    expect(rows).toHaveLength(1);
-    expect(rows[0]?.managerName).toBe("Dominik");
-    expect(rows[0]?.totalPoints).toBe(2211);
-    expect(rows[0]?.teamName).toBe("Harmonstown FC");
+  it("returns empty when FPL entryId is configured (data comes from FPL API)", () => {
+    expect(manualHistoricalEntryForSeason("2015/16")).toEqual([]);
   });
 
   it("returns empty for seasons without manual rows", () => {
     expect(manualHistoricalEntryForSeason("2024/25")).toEqual([]);
+  });
+});
+
+describe("selHistoricalMembers", () => {
+  it("links Dominik to his FPL entry ID", () => {
+    expect(selHistoricalMembers[0]?.entryId).toBe("6348284");
+    expect(historicalMemberIds()).toEqual(["6348284"]);
   });
 });

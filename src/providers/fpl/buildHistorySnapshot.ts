@@ -139,6 +139,13 @@ export async function buildPastSeasonSnapshotFromMemberCareers(
 
   for (const manual of manualHistoricalEntryForSeason(seasonName)) {
     if (seenEntryIds.has(manual.providerEntryId)) continue;
+    if (
+      entries.some((entry) =>
+        managerMatchesChampion(entry.managerName, manual.managerName),
+      )
+    ) {
+      continue;
+    }
     addEntry({
       providerEntryId: manual.providerEntryId,
       managerName: manual.managerName,
