@@ -6,14 +6,15 @@ import { getLeagueOverview } from "@/server/leagueData";
 export const dynamic = "force-dynamic";
 
 interface PageProps {
-  searchParams: Promise<{ gw?: string }>;
+  searchParams: Promise<{ gw?: string; window?: string }>;
 }
 
 export default async function LeaguePage({ searchParams }: PageProps) {
-  const { gw } = await searchParams;
+  const { gw, window: windowId } = await searchParams;
   const throughEvent = gw ? Number.parseInt(gw, 10) : undefined;
   const overview = await getLeagueOverview({
     throughEvent: Number.isFinite(throughEvent) ? throughEvent : undefined,
+    window: windowId,
   });
 
   if (!overview.league) {

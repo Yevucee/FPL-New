@@ -1,5 +1,6 @@
 import type { EntryInput, ResultInput, StandingRow } from "./types";
-import { gameweekWinner, woodenSpoon as woodenSpoonAward } from "./awards";
+import { gameweekWinner, monthlyWinner, woodenSpoon as woodenSpoonAward } from "./awards";
+import { formatChipName } from "@/lib/chipLabels";
 import { averageTemplateOverlapByEntry, type EventSquadIntel } from "./squadOverlap";
 import { computeStandings } from "./standings";
 
@@ -7,6 +8,12 @@ export interface CaptainHistoryInput {
   entryId: string;
   eventNumber: number;
   captainName: string;
+}
+
+export interface CaptainPointsHistoryInput {
+  entryId: string;
+  eventNumber: number;
+  points: number;
 }
 
 export interface InsightPerson {
@@ -54,6 +61,11 @@ export interface CaptainInsight extends ValueInsight {
   captainName: string;
 }
 
+export interface ChipWeekInsight extends SeasonBestGwInsight {
+  chip: string;
+  chipLabel: string;
+}
+
 export interface LeagueInsights {
   woodenSpoon: ValueInsight | null;
   biggestClimber: RankMovementInsight | null;
@@ -62,13 +74,21 @@ export interface LeagueInsights {
   seasonBestGw: SeasonBestGwInsight | null;
   seasonWorstGw: SeasonBestGwInsight | null;
   mostGameweekWins: ValueInsight | null;
+  mostMonthlyWins: ValueInsight | null;
   seasonWoodenSpoonCount: ValueInsight | null;
+  transferTaxSeason: ValueInsight | null;
+  benchRegretSeason: ValueInsight | null;
   benchPointsLeader: ValueInsight | null;
   transferHitsLeader: ValueInsight | null;
   seasonTransferLeader: ValueInsight | null;
   captaincyLeader: CaptainInsight | null;
+  captainPointsLeader: ValueInsight | null;
   captainCopycat: ValueInsight | null;
   captainDifferential: ValueInsight | null;
+  bestFplRank: ValueInsight | null;
+  bestBenchBoost: ChipWeekInsight | null;
+  bestFreeHit: ChipWeekInsight | null;
+  bestTripleCaptain: ChipWeekInsight | null;
   mostTemplate: ValueInsight | null;
   mostContrarian: ValueInsight | null;
   mostWeeksAtTop: ValueInsight | null;
@@ -121,6 +141,59 @@ function topByNumericValue(
         person(entryId, entryMap).managerName.localeCompare(best.managerName) < 0)
     ) {
       best = { ...person(entryId, entryMap), value };
+    }
+  }
+  return best;
+}
+
+function countMonthlyWins(
+  results: ReadonlyArray<ResultInput>,
+  completedPhases: ReadonlyArray<number>,
+): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const phase of completedPhases) {
+    const award = monthlyWinner(results, phase);
+    if (!award) continue;
+    for (const entryId of award.entryIds) {
+      counts.set(entryId, (counts.get(entryId) ?? 0) + 1);
+    }
+  }
+  return counts;
+}
+
+function sumByEntry(
+  results: ReadonlyArray<ResultInput>,
+  throughEvent: number,
+  pick: (result: ResultInput) => number,
+): Map<string, number> {
+  const totals = new Map<string, number>();
+  for (const result of results) {
+    if (result.eventNumber > throughEvent) continue;
+    const value = pick(result);
+    if (value <= 0) continue;
+    totals.set(result.entryId, (totals.get(result.entryId) ?? 0) + value);
+  }
+  return totals;
+}
+
+function bestChipWeek(
+  results: ReadonlyArray<ResultInput>,
+  chip: string,
+  throughEvent: number,
+  entryMap: ReadonlyMap<string, EntryInput>,
+): ChipWeekInsight | null {
+  let best: ChipWeekInsight | null = null;
+  for (const result of results) {
+    if (result.eventNumber > throughEvent) continue;
+    if ((result.chip ?? "").toLowerCase() !== chip) continue;
+    if (!best || result.netPoints > best.value) {
+      best = {
+        ...person(result.entryId, entryMap),
+        value: result.netPoints,
+        eventNumber: result.eventNumber,
+        chip,
+        chipLabel: formatChipName(chip),
+      };
     }
   }
   return best;
@@ -264,7 +337,9 @@ export function computeLeagueInsights(
     entryMeta?: ReadonlyMap<string, EntryMetaInput>;
     captainByEntry?: ReadonlyMap<string, { name: string; points: number | null }>;
     captainHistory?: ReadonlyArray<CaptainHistoryInput>;
+    captainPointsHistory?: ReadonlyArray<CaptainPointsHistoryInput>;
     squadIntelByEvent?: ReadonlyArray<EventSquadIntel>;
+    completedPhases?: ReadonlyArray<number>;
   } = {},
 ): LeagueInsights {
   const entryMap = new Map(entries.map((e) => [e.entryId, e]));
@@ -390,8 +465,44 @@ export function computeLeagueInsights(
   const gwWinCounts = countAwardWins(results, throughEvent, gameweekWinner);
   const mostGameweekWins = topByCount(gwWinCounts, entryMap);
 
+  const monthlyWinCounts = countMonthlyWins(
+    results.filter((row) => row.eventNumber <= throughEvent),
+    options.completedPhases ?? [],
+  );
+  const mostMonthlyWins = topByCount(monthlyWinCounts, entryMap);
+
   const spoonCounts = countAwardWins(results, throughEvent, woodenSpoonAward);
   const seasonWoodenSpoonCount = topByCount(spoonCounts, entryMap);
+
+  const transferTaxTotals = sumByEntry(results, throughEvent, (row) => row.transferCost);
+  const transferTaxSeason = topByNumericValue(transferTaxTotals, entryMap, "high");
+
+  const benchRegretTotals = sumByEntry(results, throughEvent, (row) => row.benchPoints);
+  const benchRegretSeason = topByNumericValue(benchRegretTotals, entryMap, "high");
+
+  let captainPointsLeader: ValueInsight | null = null;
+  if (options.captainPointsHistory && options.captainPointsHistory.length > 0) {
+    const captainTotals = new Map<string, number>();
+    for (const row of options.captainPointsHistory) {
+      if (row.eventNumber > throughEvent || row.points <= 0) continue;
+      captainTotals.set(row.entryId, (captainTotals.get(row.entryId) ?? 0) + row.points);
+    }
+    captainPointsLeader = topByNumericValue(captainTotals, entryMap, "high");
+  }
+
+  let bestFplRank: ValueInsight | null = null;
+  if (options.entryMeta) {
+    const rankValues = new Map<string, number>();
+    for (const entry of entries) {
+      const rank = options.entryMeta.get(entry.entryId)?.overallFplRank;
+      if (rank != null && rank > 0) rankValues.set(entry.entryId, rank);
+    }
+    bestFplRank = topByNumericValue(rankValues, entryMap, "low");
+  }
+
+  const bestBenchBoost = bestChipWeek(results, "bboost", throughEvent, entryMap);
+  const bestFreeHit = bestChipWeek(results, "freehit", throughEvent, entryMap);
+  const bestTripleCaptain = bestChipWeek(results, "3xc", throughEvent, entryMap);
 
   let captainCopycat: ValueInsight | null = null;
   let captainDifferential: ValueInsight | null = null;
@@ -417,13 +528,21 @@ export function computeLeagueInsights(
     seasonBestGw,
     seasonWorstGw,
     mostGameweekWins,
+    mostMonthlyWins,
     seasonWoodenSpoonCount,
+    transferTaxSeason,
+    benchRegretSeason,
     benchPointsLeader,
     transferHitsLeader,
     seasonTransferLeader,
     captaincyLeader,
+    captainPointsLeader,
     captainCopycat,
     captainDifferential,
+    bestFplRank,
+    bestBenchBoost,
+    bestFreeHit,
+    bestTripleCaptain,
     mostTemplate,
     mostContrarian,
     mostWeeksAtTop,

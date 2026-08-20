@@ -19,6 +19,14 @@ import { mergeManualHistoricalEntries } from "@/lib/mergeHistoricalStandings";
 import { loadMostOwnedIntel, loadSquadIntelThrough } from "@/server/eventIntelData";
 import { RECONSTRUCTED_SEASON_PROVIDER_ID } from "@/providers/fpl/buildHistorySnapshot";
 import { buildSelectableEvents, findLiveGameweek } from "@/lib/liveGameweek";
+import {
+  buildSeasonWindowOptions,
+  clampThroughEventForWindow,
+  filterResultsForWindow,
+  resolveSeasonWindow,
+  type ResolvedSeasonWindow,
+  type SeasonWindowOption,
+} from "@/lib/seasonWindow";
 import { gameweekWinner, monthlyWinner } from "@/metrics/awards";
 import { computeLeagueInsights, type LeagueInsights } from "@/metrics/insights";
 import { computeStandings } from "@/metrics/standings";
@@ -52,12 +60,15 @@ export interface LeagueOverview {
   selectedEvent: number | null;
   finishedEvents: number[];
   standings: StandingRow[];
+  managers: Array<{ entryId: string; managerName: string; teamName: string }>;
   entryIntel: Record<string, EntryIntel>;
   mostOwned: MostOwnedPlayer[] | null;
   mostOwnedEvent: number | null;
   gameweekWinner: AwardCard | null;
   monthlyLeader: AwardCard | null;
   insights: LeagueInsights | null;
+  seasonWindow: ResolvedSeasonWindow;
+  seasonWindowOptions: SeasonWindowOption[];
   lastSync: { status: string; finishedAt: Date | null } | null;
   dataMode: "preseason" | "live" | "archived" | "empty";
   seasonState: string | null;
@@ -71,6 +82,8 @@ export interface LeagueOverviewOptions {
   seasonName?: string;
   /** When true, only seasons with state=archived are considered. */
   archivedOnly?: boolean;
+  /** Standings window: full, first-half, second-half, phase-N */
+  window?: string;
 }
 
 /**
@@ -106,12 +119,15 @@ export async function getLeagueOverview(
     selectedEvent: null,
     finishedEvents: [],
     standings: [],
+    managers: [],
     entryIntel: {},
     mostOwned: null,
     mostOwnedEvent: null,
     gameweekWinner: null,
     monthlyLeader: null,
     insights: null,
+    seasonWindow: { id: "full", label: "Full season", kind: "full", fromEvent: 1, phase: null },
+    seasonWindowOptions: [{ id: "full", label: "Full season", kind: "full" }],
     lastSync,
     dataMode: "empty",
     seasonState: null,
@@ -244,10 +260,23 @@ export async function getLeagueOverview(
 
   const selectableEvents = buildSelectableEvents(gameweekMeta, finishedEvents, liveEvent);
 
+  const eventMeta = eventRows.map((ev) => ({
+    eventNumber: ev.eventNumber,
+    phase: ev.phase,
+    phaseName: ev.phaseName,
+  }));
+  const seasonWindowOptions = buildSeasonWindowOptions(eventMeta);
+  const seasonWindow = resolveSeasonWindow(options.window, eventMeta);
+
   const selectedEvent =
     options.throughEvent && selectableEvents.includes(options.throughEvent)
       ? options.throughEvent
       : liveEvent ?? latestFinishedEvent;
+
+  const windowThroughEvent =
+    selectedEvent !== null
+      ? clampThroughEventForWindow(selectedEvent, seasonWindow, eventMeta)
+      : selectedEvent;
 
   const isLiveGameweek = liveEvent !== null && selectedEvent === liveEvent;
 
@@ -301,14 +330,24 @@ export async function getLeagueOverview(
 
   const captainByEntry = new Map<string, { name: string; points: number | null }>();
   const captainHistory: { entryId: string; eventNumber: number; captainName: string }[] = [];
+  const captainPointsHistory: { entryId: string; eventNumber: number; points: number }[] = [];
   for (const r of resultRows) {
-    if (!r.captainName || (selectedEvent !== null && r.eventNumber > selectedEvent)) continue;
-    captainHistory.push({
-      entryId: r.entryId,
-      eventNumber: r.eventNumber,
-      captainName: r.captainName,
-    });
-    if (selectedEvent !== null && r.eventNumber === selectedEvent) {
+    if (selectedEvent !== null && r.eventNumber > selectedEvent) continue;
+    if (r.captainName) {
+      captainHistory.push({
+        entryId: r.entryId,
+        eventNumber: r.eventNumber,
+        captainName: r.captainName,
+      });
+    }
+    if (r.captainPoints != null && r.captainPoints > 0) {
+      captainPointsHistory.push({
+        entryId: r.entryId,
+        eventNumber: r.eventNumber,
+        points: r.captainPoints,
+      });
+    }
+    if (selectedEvent !== null && r.eventNumber === selectedEvent && r.captainName) {
       captainByEntry.set(r.entryId, {
         name: r.captainName,
         points: r.captainPoints,
@@ -316,24 +355,49 @@ export async function getLeagueOverview(
     }
   }
 
+  const scopedResults =
+    windowThroughEvent !== null
+      ? filterResultsForWindow(displayResults, windowThroughEvent, seasonWindow)
+      : displayResults;
+  const scopedEventNumbers = new Set(scopedResults.map((row) => row.eventNumber));
+  const scopedCaptainHistory = captainHistory.filter((row) =>
+    scopedEventNumbers.has(row.eventNumber),
+  );
+  const scopedCaptainPointsHistory = captainPointsHistory.filter((row) =>
+    scopedEventNumbers.has(row.eventNumber),
+  );
+
+  const completedPhases = (() => {
+    const maxByPhase = new Map<number, number>();
+    for (const event of eventMeta) {
+      maxByPhase.set(event.phase, Math.max(maxByPhase.get(event.phase) ?? 0, event.eventNumber));
+    }
+    if (windowThroughEvent === null) return [];
+    return [...maxByPhase.entries()]
+      .filter(([, maxEvent]) => maxEvent <= windowThroughEvent)
+      .map(([phase]) => phase);
+  })();
+
   const squadIntelByEvent =
-    selectedEvent !== null && !season.state.includes("archived-summary")
-      ? await loadSquadIntelThrough(season.id, selectedEvent)
+    windowThroughEvent !== null && !season.state.includes("archived-summary")
+      ? await loadSquadIntelThrough(season.id, windowThroughEvent)
       : [];
 
   const insights =
-    selectedEvent !== null
-      ? computeLeagueInsights(displayEntries, displayResults, selectedEvent, {
+    windowThroughEvent !== null
+      ? computeLeagueInsights(displayEntries, scopedResults, windowThroughEvent, {
           entryMeta,
           captainByEntry,
-          captainHistory,
+          captainHistory: scopedCaptainHistory,
+          captainPointsHistory: scopedCaptainPointsHistory,
           squadIntelByEvent,
+          completedPhases,
         })
       : null;
 
   const standingsRaw =
-    selectedEvent !== null
-      ? computeStandings(displayEntries, displayResults, selectedEvent)
+    windowThroughEvent !== null
+      ? computeStandings(displayEntries, scopedResults, windowThroughEvent)
       : [];
   const standings = standingsRaw.map((row) => ({
     ...row,
@@ -358,14 +422,14 @@ export async function getLeagueOverview(
 
   const gwCard =
     selectedEvent !== null
-      ? toCard(gameweekWinner(results, selectedEvent), { eventNumber: selectedEvent })
+      ? toCard(gameweekWinner(displayResults, selectedEvent), { eventNumber: selectedEvent })
       : null;
 
   const selectedPhase =
     selectedEvent !== null ? phaseByEvent.get(selectedEvent)?.phase ?? 1 : null;
   const monthlyCard =
     selectedPhase !== null && selectedEvent !== null
-      ? toCard(monthlyWinner(results, selectedPhase), {
+      ? toCard(monthlyWinner(displayResults, selectedPhase), {
           phase: selectedPhase,
           phaseName: phaseByEvent.get(selectedEvent)?.phaseName ?? null,
         })
@@ -393,12 +457,19 @@ export async function getLeagueOverview(
     selectedEvent,
     finishedEvents: selectableEvents,
     standings,
+    managers: displayEntries.map((entry) => ({
+      entryId: entry.entryId,
+      managerName: entry.managerName,
+      teamName: entry.teamName,
+    })),
     entryIntel,
     mostOwned,
     mostOwnedEvent,
     gameweekWinner: gwCard,
     monthlyLeader: monthlyCard,
     insights,
+    seasonWindow,
+    seasonWindowOptions,
     lastSync,
     dataMode,
   };

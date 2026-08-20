@@ -5,8 +5,10 @@ import { GameweekPicker } from "./GameweekPicker";
 import { InsightsSection } from "./InsightsSection";
 import { MostOwnedSection } from "./MostOwnedSection";
 import { SeasonHeader } from "./SeasonHeader";
+import { SeasonWindowPicker } from "./SeasonWindowPicker";
 import { StandingsTable } from "./StandingsTable";
 import { formatSyncLabel } from "@/lib/formatTime";
+import { standingsLabelForWindow } from "@/lib/seasonWindow";
 
 interface LeagueDashboardProps {
   overview: LeagueOverview;
@@ -24,9 +26,11 @@ export function LeagueDashboard({
 
   const standingsTitle = overview.isSummaryArchive
     ? "Final standings"
-    : overview.isLiveGameweek
-      ? `Live standings · GW${selectedEvent}`
-      : `Standings${selectedEvent !== null ? ` through GW${selectedEvent}` : ""}`;
+    : standingsLabelForWindow(
+        overview.seasonWindow,
+        overview.selectedEvent,
+        overview.isLiveGameweek,
+      );
 
   return (
     <div className="space-y-8">
@@ -75,12 +79,24 @@ export function LeagueDashboard({
       {!overview.isSummaryArchive &&
         overview.finishedEvents.length > 0 &&
         selectedEvent !== null && (
-          <GameweekPicker
-            events={overview.finishedEvents}
-            selected={selectedEvent}
-            liveEvent={overview.liveEvent}
-            basePath={gameweekBasePath}
-          />
+          <div className="flex flex-wrap items-center gap-4">
+            <GameweekPicker
+              events={overview.finishedEvents}
+              selected={selectedEvent}
+              liveEvent={overview.liveEvent}
+              basePath={gameweekBasePath}
+            />
+            {overview.seasonWindowOptions.length > 1 && (
+              <SeasonWindowPicker
+                options={overview.seasonWindowOptions}
+                selectedId={overview.seasonWindow.id}
+                selectedGw={selectedEvent}
+                liveEvent={overview.liveEvent}
+                latestGw={overview.finishedEvents[overview.finishedEvents.length - 1]!}
+                basePath={gameweekBasePath}
+              />
+            )}
+          </div>
         )}
 
       {!overview.isSummaryArchive && (

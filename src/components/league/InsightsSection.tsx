@@ -67,6 +67,44 @@ export function InsightsSection({ insights, eventNumber }: InsightsSectionProps)
       label: "Most GW wins (season)",
       value: `${insights.mostGameweekWins.managerName} (${insights.mostGameweekWins.value} win${insights.mostGameweekWins.value === 1 ? "" : "s"})`,
     },
+    insights.mostMonthlyWins && {
+      label: "Most monthly wins (season)",
+      value: `${insights.mostMonthlyWins.managerName} (${insights.mostMonthlyWins.value} win${insights.mostMonthlyWins.value === 1 ? "" : "s"})`,
+    },
+  ].filter(Boolean) as InsightItem[];
+
+  const seasonTotals: InsightItem[] = [
+    insights.transferTaxSeason && {
+      label: "Transfer tax (season)",
+      value: `${insights.transferTaxSeason.managerName} (−${insights.transferTaxSeason.value} pts)`,
+    },
+    insights.benchRegretSeason && {
+      label: "Bench regret (season)",
+      value: `${insights.benchRegretSeason.managerName} (${insights.benchRegretSeason.value} pts on bench)`,
+    },
+    insights.captainPointsLeader && {
+      label: "Captain points (season)",
+      value: `${insights.captainPointsLeader.managerName} (${insights.captainPointsLeader.value} pts)`,
+    },
+    insights.bestFplRank && {
+      label: "Best global FPL rank",
+      value: `${insights.bestFplRank.managerName} (#${insights.bestFplRank.value.toLocaleString()})`,
+    },
+  ].filter(Boolean) as InsightItem[];
+
+  const chips: InsightItem[] = [
+    insights.bestBenchBoost && {
+      label: "Best Bench Boost",
+      value: `${insights.bestBenchBoost.managerName} — ${insights.bestBenchBoost.value} pts (GW${insights.bestBenchBoost.eventNumber})`,
+    },
+    insights.bestFreeHit && {
+      label: "Best Free Hit",
+      value: `${insights.bestFreeHit.managerName} — ${insights.bestFreeHit.value} pts (GW${insights.bestFreeHit.eventNumber})`,
+    },
+    insights.bestTripleCaptain && {
+      label: "Best Triple Captain",
+      value: `${insights.bestTripleCaptain.managerName} — ${insights.bestTripleCaptain.value} pts (GW${insights.bestTripleCaptain.eventNumber})`,
+    },
   ].filter(Boolean) as InsightItem[];
 
   const transfers: InsightItem[] = [
@@ -128,6 +166,8 @@ export function InsightsSection({ insights, eventNumber }: InsightsSectionProps)
   const hasGroups =
     movement.length +
       scoring.length +
+      seasonTotals.length +
+      chips.length +
       transfers.length +
       captaincy.length +
       consistency.length +
@@ -146,6 +186,8 @@ export function InsightsSection({ insights, eventNumber }: InsightsSectionProps)
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {movement.length > 0 && <InsightGroup title="Movement" items={movement} />}
           {scoring.length > 0 && <InsightGroup title="Scoring" items={scoring} />}
+          {seasonTotals.length > 0 && <InsightGroup title="Season totals" items={seasonTotals} />}
+          {chips.length > 0 && <InsightGroup title="Chips" items={chips} />}
           {consistency.length > 0 && <InsightGroup title="Consistency" items={consistency} />}
           {squadStyle.length > 0 && <InsightGroup title="Squad style" items={squadStyle} />}
           {transfers.length > 0 && <InsightGroup title="Transfers" items={transfers} />}
