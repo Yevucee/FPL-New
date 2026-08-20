@@ -22,6 +22,8 @@ export async function GET(request: Request) {
         gameweekWinner: overview.gameweekWinner,
         monthlyLeader: overview.monthlyLeader,
         insights: overview.insights,
+        mostOwned: overview.mostOwned,
+        mostOwnedEvent: overview.mostOwnedEvent,
       },
       { source: "database", provider: process.env.FANTASY_PROVIDER_MODE ?? "fixtures" },
     );

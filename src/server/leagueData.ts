@@ -3,7 +3,6 @@ import { and, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   entryEventResults,
-  eventIntel,
   events,
   leagues,
   managers,
@@ -17,6 +16,7 @@ import { leagueConfig } from "@/lib/leagueConfig";
 import { leagueHistoryProviderIds } from "@/lib/leagueHistoryConfig";
 import { MOST_OWNED_PUBLIC_LIMIT } from "@/lib/mostOwnedLimits";
 import { mergeManualHistoricalEntries } from "@/lib/mergeHistoricalStandings";
+import { loadMostOwnedIntel } from "@/server/eventIntelData";
 import { RECONSTRUCTED_SEASON_PROVIDER_ID } from "@/providers/fpl/buildHistorySnapshot";
 import { buildSelectableEvents, findLiveGameweek } from "@/lib/liveGameweek";
 import { gameweekWinner, monthlyWinner } from "@/metrics/awards";
@@ -332,16 +332,14 @@ export async function getLeagueOverview(
 
   let mostOwned: MostOwnedPlayer[] | null = null;
   let mostOwnedEvent: number | null = null;
-  if (selectedEvent !== null && !season.state.includes("archived-summary")) {
-    const intelRow = await db.query.eventIntel.findFirst({
-      where: and(
-        eq(eventIntel.seasonId, season.id),
-        eq(eventIntel.eventNumber, selectedEvent),
-      ),
+  if (!season.state.includes("archived-summary")) {
+    const intel = await loadMostOwnedIntel(season.id, {
+      preferredEvent: selectedEvent ?? liveEvent ?? currentEvent,
+      limit: MOST_OWNED_PUBLIC_LIMIT,
     });
-    if (intelRow?.mostOwned) {
-      mostOwned = intelRow.mostOwned.slice(0, MOST_OWNED_PUBLIC_LIMIT);
-      mostOwnedEvent = selectedEvent;
+    if (intel) {
+      mostOwned = intel.players;
+      mostOwnedEvent = intel.eventNumber;
     }
   }
 

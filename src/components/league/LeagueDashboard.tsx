@@ -100,13 +100,23 @@ export function LeagueDashboard({
         <InsightsSection insights={insights} eventNumber={selectedEvent} />
       )}
 
-      {overview.mostOwned && overview.mostOwned.length > 0 && (
+      {overview.mostOwned && overview.mostOwned.length > 0 ? (
         <MostOwnedSection
           players={overview.mostOwned}
           eventNumber={overview.mostOwnedEvent ?? selectedEvent}
           managerCount={overview.registeredManagers}
         />
-      )}
+      ) : overview.dataMode === "preseason" ? (
+        <section>
+          <h2 className="mb-1 text-lg font-bold tracking-tight text-slate-900">
+            Most owned
+          </h2>
+          <p className="text-sm text-slate-500">
+            League ownership appears here after squads lock for Gameweek 1 — same
+            snapshot data as the team planner, visible to everyone on this page.
+          </p>
+        </section>
+      ) : null}
 
       <StandingsTable
         overview={overview}

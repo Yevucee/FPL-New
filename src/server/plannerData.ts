@@ -3,20 +3,20 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   entryEventResults,
-  eventIntel,
   events,
   leagues,
   managers,
   seasonEntries,
   seasons,
 } from "@/db/schema";
+import { leagueConfig } from "@/lib/leagueConfig";
 import {
   DIFFERENTIAL_MAX_OWNERS,
   DIFFERENTIAL_PLANNER_LIMIT,
   MOST_OWNED_PLANNER_LIMIT,
 } from "@/lib/mostOwnedLimits";
 import { formatChipName, SEASON_CHIP_TYPES, type SeasonChipType } from "@/lib/chipLabels";
-import { leagueConfig } from "@/lib/leagueConfig";
+import { loadMostOwnedIntel } from "@/server/eventIntelData";
 import { filterDifferentials } from "@/providers/fpl/mostOwned";
 import type { MostOwnedPlayer } from "@/providers/fpl/mostOwned";
 
@@ -103,17 +103,11 @@ export async function getPlannerOverview(): Promise<PlannerOverview | null> {
 
   let mostOwned: MostOwnedPlayer[] = [];
   let differentials: MostOwnedPlayer[] = [];
-  if (latestEvent !== null) {
-    const intel = await db.query.eventIntel.findFirst({
-      where: and(
-        eq(eventIntel.seasonId, season.id),
-        eq(eventIntel.eventNumber, latestEvent),
-      ),
-    });
-    const allOwned = intel?.mostOwned ?? [];
-    mostOwned = allOwned.slice(0, MOST_OWNED_PLANNER_LIMIT);
+  const fullIntel = await loadMostOwnedIntel(season.id, { preferredEvent: latestEvent });
+  if (fullIntel) {
+    mostOwned = fullIntel.players.slice(0, MOST_OWNED_PLANNER_LIMIT);
     differentials = filterDifferentials(
-      allOwned,
+      fullIntel.players,
       DIFFERENTIAL_MAX_OWNERS,
       DIFFERENTIAL_PLANNER_LIMIT,
     );
@@ -165,11 +159,13 @@ export async function getPlannerOverview(): Promise<PlannerOverview | null> {
     };
   });
 
+  const snapshotEvent = fullIntel?.eventNumber ?? latestEvent;
+
   const captainPicks: CaptainPickRow[] =
-    latestEvent === null
+    snapshotEvent === null
       ? []
       : resultRows
-          .filter((row) => row.eventNumber === latestEvent)
+          .filter((row) => row.eventNumber === snapshotEvent)
           .map((row) => ({
             managerName: row.managerName,
             teamName: row.teamName,
@@ -180,7 +176,7 @@ export async function getPlannerOverview(): Promise<PlannerOverview | null> {
 
   return {
     seasonName: season.name,
-    eventNumber: latestEvent,
+    eventNumber: snapshotEvent,
     managerCount: entries.length,
     mostOwned,
     differentials,
