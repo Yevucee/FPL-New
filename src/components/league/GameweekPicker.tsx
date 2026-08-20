@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 interface GameweekPickerProps {
   events: number[];
@@ -17,13 +17,22 @@ export function GameweekPicker({
   basePath,
 }: GameweekPickerProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const latest = events[events.length - 1]!;
   const index = events.indexOf(selected);
   const prev = index > 0 ? events[index - 1]! : null;
   const next = index >= 0 && index < events.length - 1 ? events[index + 1]! : null;
 
-  const hrefFor = (gw: number) =>
-    gw === latest && liveEvent === null ? basePath : `${basePath}?gw=${gw}`;
+  const hrefFor = (gw: number) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (gw === latest && liveEvent === null) params.delete("gw");
+    else params.set("gw", String(gw));
+    const query = params.toString();
+    if (gw === latest && liveEvent === null && !query.includes("window=")) {
+      return basePath;
+    }
+    return query ? `${basePath}?${query}` : basePath;
+  };
 
   return (
     <div className="flex flex-wrap items-center gap-3">

@@ -150,6 +150,12 @@ export const eventIntel = pgTable(
         ownerPct: number;
       }>
     >(),
+    entrySquads: jsonb("entry_squads").$type<
+      Array<{
+        entryId: string;
+        starterIds: number[];
+      }>
+    >(),
     fetchedAt: timestamp("fetched_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
