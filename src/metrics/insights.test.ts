@@ -58,4 +58,18 @@ describe("computeLeagueInsights", () => {
     const gw2 = computeLeagueInsights(entries, results, 2);
     expect(gw2.chipsPlayed.some((c) => c.chip === "3xc")).toBe(true);
   });
+
+  it("counts weeks at top and last place across the season", () => {
+    const gw1 = computeLeagueInsights(entries, results, 1);
+    expect(gw1.mostWeeksAtTop?.entryId).toBe("b");
+    expect(gw1.mostWeeksAtTop?.value).toBe(1);
+    expect(gw1.mostWeeksLast?.entryId).toBe("c");
+    expect(gw1.mostWeeksLast?.value).toBe(1);
+
+    const gw2 = computeLeagueInsights(entries, results, 2);
+    expect(gw2.mostWeeksAtTop?.entryId).toBe("a");
+    expect(gw2.mostWeeksAtTop?.value).toBe(1);
+    expect(gw2.mostWeeksLast?.entryId).toBe("c");
+    expect(gw2.mostWeeksLast?.value).toBe(2);
+  });
 });

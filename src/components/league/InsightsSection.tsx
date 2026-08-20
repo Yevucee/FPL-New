@@ -83,8 +83,19 @@ export function InsightsSection({ insights, eventNumber }: InsightsSectionProps)
     },
   ].filter(Boolean) as InsightItem[];
 
+  const consistency: InsightItem[] = [
+    insights.mostWeeksAtTop && {
+      label: "Most weeks at #1",
+      value: `${insights.mostWeeksAtTop.managerName} (${insights.mostWeeksAtTop.value} wk${insights.mostWeeksAtTop.value === 1 ? "" : "s"})`,
+    },
+    insights.mostWeeksLast && {
+      label: "Most weeks in last place",
+      value: `${insights.mostWeeksLast.managerName} (${insights.mostWeeksLast.value} wk${insights.mostWeeksLast.value === 1 ? "" : "s"})`,
+    },
+  ].filter(Boolean) as InsightItem[];
+
   const hasGroups =
-    movement.length + scoring.length + transfers.length + captaincy.length > 0;
+    movement.length + scoring.length + transfers.length + captaincy.length + consistency.length > 0;
   const hasForm = insights.formLeaders.length > 0;
 
   if (!hasGroups && !hasForm) return null;
@@ -98,6 +109,7 @@ export function InsightsSection({ insights, eventNumber }: InsightsSectionProps)
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {movement.length > 0 && <InsightGroup title="Movement" items={movement} />}
           {scoring.length > 0 && <InsightGroup title="Scoring" items={scoring} />}
+          {consistency.length > 0 && <InsightGroup title="Consistency" items={consistency} />}
           {transfers.length > 0 && <InsightGroup title="Transfers" items={transfers} />}
           {captaincy.length > 0 && <InsightGroup title="Captaincy" items={captaincy} />}
         </div>

@@ -56,6 +56,8 @@ export interface LeagueInsights {
   transferHitsLeader: ValueInsight | null;
   seasonTransferLeader: ValueInsight | null;
   captaincyLeader: CaptainInsight | null;
+  mostWeeksAtTop: ValueInsight | null;
+  mostWeeksLast: ValueInsight | null;
   formLeaders: FormInsight[];
   chipsPlayed: ChipInsight[];
 }
@@ -70,6 +72,57 @@ function person(
     managerName: e?.managerName ?? "Unknown",
     teamName: e?.teamName ?? "Unknown",
   };
+}
+
+function topByCount(
+  counts: ReadonlyMap<string, number>,
+  entryMap: ReadonlyMap<string, EntryInput>,
+): ValueInsight | null {
+  let best: ValueInsight | null = null;
+  for (const [entryId, count] of counts) {
+    if (count <= 0) continue;
+    if (
+      !best ||
+      count > best.value ||
+      (count === best.value &&
+        person(entryId, entryMap).managerName.localeCompare(best.managerName) < 0)
+    ) {
+      best = { ...person(entryId, entryMap), value: count };
+    }
+  }
+  return best;
+}
+
+function countWeeksAtRankExtremes(
+  entries: ReadonlyArray<EntryInput>,
+  results: ReadonlyArray<ResultInput>,
+  throughEvent: number,
+): { weeksAtTop: Map<string, number>; weeksLast: Map<string, number> } {
+  const weeksAtTop = new Map<string, number>();
+  const weeksLast = new Map<string, number>();
+  for (const e of entries) {
+    weeksAtTop.set(e.entryId, 0);
+    weeksLast.set(e.entryId, 0);
+  }
+
+  for (let event = 1; event <= throughEvent; event++) {
+    const hasGwResults = results.some((r) => r.eventNumber === event);
+    if (!hasGwResults) continue;
+
+    const standings = computeStandings(entries, results, event);
+    const maxRank = Math.max(...standings.map((s) => s.rank));
+
+    for (const row of standings) {
+      if (row.rank === 1) {
+        weeksAtTop.set(row.entryId, (weeksAtTop.get(row.entryId) ?? 0) + 1);
+      }
+      if (row.rank === maxRank) {
+        weeksLast.set(row.entryId, (weeksLast.get(row.entryId) ?? 0) + 1);
+      }
+    }
+  }
+
+  return { weeksAtTop, weeksLast };
 }
 
 function topMovement(
@@ -217,6 +270,10 @@ export function computeLeagueInsights(
     }
   }
 
+  const { weeksAtTop, weeksLast } = countWeeksAtRankExtremes(entries, results, throughEvent);
+  const mostWeeksAtTop = topByCount(weeksAtTop, entryMap);
+  const mostWeeksLast = topByCount(weeksLast, entryMap);
+
   return {
     woodenSpoon,
     biggestClimber: topMovement(standings, "up"),
@@ -227,6 +284,8 @@ export function computeLeagueInsights(
     transferHitsLeader,
     seasonTransferLeader,
     captaincyLeader,
+    mostWeeksAtTop,
+    mostWeeksLast,
     formLeaders,
     chipsPlayed: chipsPlayed.sort((a, b) => b.eventNumber - a.eventNumber),
   };

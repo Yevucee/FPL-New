@@ -102,6 +102,18 @@ export function previewLeagueOverview(selectedGw = PREVIEW_GW): LeagueOverview {
       value: 24,
       captainName: "Haaland",
     },
+    mostWeeksAtTop: {
+      entryId: managers[0]!.id,
+      managerName: managers[0]!.name,
+      teamName: managers[0]!.team,
+      value: 5,
+    },
+    mostWeeksLast: {
+      entryId: managers[6]!.id,
+      managerName: managers[6]!.name,
+      teamName: managers[6]!.team,
+      value: 4,
+    },
     formLeaders: [
       {
         entryId: managers[1]!.id,
