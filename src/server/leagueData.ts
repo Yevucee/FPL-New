@@ -16,7 +16,7 @@ import { leagueConfig } from "@/lib/leagueConfig";
 import { leagueHistoryProviderIds } from "@/lib/leagueHistoryConfig";
 import { MOST_OWNED_PUBLIC_LIMIT } from "@/lib/mostOwnedLimits";
 import { mergeManualHistoricalEntries } from "@/lib/mergeHistoricalStandings";
-import { loadMostOwnedIntel } from "@/server/eventIntelData";
+import { loadMostOwnedIntel, loadSquadIntelThrough } from "@/server/eventIntelData";
 import { RECONSTRUCTED_SEASON_PROVIDER_ID } from "@/providers/fpl/buildHistorySnapshot";
 import { buildSelectableEvents, findLiveGameweek } from "@/lib/liveGameweek";
 import { gameweekWinner, monthlyWinner } from "@/metrics/awards";
@@ -300,9 +300,15 @@ export async function getLeagueOverview(
   }
 
   const captainByEntry = new Map<string, { name: string; points: number | null }>();
-  if (selectedEvent !== null) {
-    for (const r of resultRows) {
-      if (r.eventNumber !== selectedEvent || !r.captainName) continue;
+  const captainHistory: { entryId: string; eventNumber: number; captainName: string }[] = [];
+  for (const r of resultRows) {
+    if (!r.captainName || (selectedEvent !== null && r.eventNumber > selectedEvent)) continue;
+    captainHistory.push({
+      entryId: r.entryId,
+      eventNumber: r.eventNumber,
+      captainName: r.captainName,
+    });
+    if (selectedEvent !== null && r.eventNumber === selectedEvent) {
       captainByEntry.set(r.entryId, {
         name: r.captainName,
         points: r.captainPoints,
@@ -310,11 +316,18 @@ export async function getLeagueOverview(
     }
   }
 
+  const squadIntelByEvent =
+    selectedEvent !== null && !season.state.includes("archived-summary")
+      ? await loadSquadIntelThrough(season.id, selectedEvent)
+      : [];
+
   const insights =
     selectedEvent !== null
       ? computeLeagueInsights(displayEntries, displayResults, selectedEvent, {
           entryMeta,
           captainByEntry,
+          captainHistory,
+          squadIntelByEvent,
         })
       : null;
 

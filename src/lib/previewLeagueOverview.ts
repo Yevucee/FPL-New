@@ -77,6 +77,25 @@ export function previewLeagueOverview(selectedGw = PREVIEW_GW): LeagueOverview {
       value: 94,
       eventNumber: 9,
     },
+    seasonWorstGw: {
+      entryId: managers[6]!.id,
+      managerName: managers[6]!.name,
+      teamName: managers[6]!.team,
+      value: 28,
+      eventNumber: 4,
+    },
+    mostGameweekWins: {
+      entryId: managers[0]!.id,
+      managerName: managers[0]!.name,
+      teamName: managers[0]!.team,
+      value: 4,
+    },
+    seasonWoodenSpoonCount: {
+      entryId: managers[6]!.id,
+      managerName: managers[6]!.name,
+      teamName: managers[6]!.team,
+      value: 3,
+    },
     benchPointsLeader: {
       entryId: managers[5]!.id,
       managerName: managers[5]!.name,
@@ -101,6 +120,30 @@ export function previewLeagueOverview(selectedGw = PREVIEW_GW): LeagueOverview {
       teamName: managers[0]!.team,
       value: 24,
       captainName: "Haaland",
+    },
+    captainCopycat: {
+      entryId: managers[4]!.id,
+      managerName: managers[4]!.name,
+      teamName: managers[4]!.team,
+      value: 9,
+    },
+    captainDifferential: {
+      entryId: managers[3]!.id,
+      managerName: managers[3]!.name,
+      teamName: managers[3]!.team,
+      value: 2,
+    },
+    mostTemplate: {
+      entryId: managers[0]!.id,
+      managerName: managers[0]!.name,
+      teamName: managers[0]!.team,
+      value: 78.2,
+    },
+    mostContrarian: {
+      entryId: managers[3]!.id,
+      managerName: managers[3]!.name,
+      teamName: managers[3]!.team,
+      value: 41.5,
     },
     mostWeeksAtTop: {
       entryId: managers[0]!.id,

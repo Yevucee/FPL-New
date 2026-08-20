@@ -1,7 +1,8 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, lte } from "drizzle-orm";
 
 import { db } from "@/db/client";
 import { eventIntel } from "@/db/schema";
+import type { EventSquadIntel } from "@/metrics/squadOverlap";
 import type { MostOwnedPlayer } from "@/providers/fpl/mostOwned";
 
 export interface MostOwnedIntel {
@@ -57,4 +58,28 @@ async function findMostOwnedIntelRow(
     .limit(1);
 
   return latest?.mostOwned?.length ? latest : null;
+}
+
+/** Squad snapshots + most-owned for template/contrarian stats through a gameweek. */
+export async function loadSquadIntelThrough(
+  seasonId: string,
+  throughEvent: number,
+): Promise<EventSquadIntel[]> {
+  const rows = await db
+    .select({
+      eventNumber: eventIntel.eventNumber,
+      mostOwned: eventIntel.mostOwned,
+      entrySquads: eventIntel.entrySquads,
+    })
+    .from(eventIntel)
+    .where(and(eq(eventIntel.seasonId, seasonId), lte(eventIntel.eventNumber, throughEvent)))
+    .orderBy(eventIntel.eventNumber);
+
+  return rows
+    .filter((row) => row.mostOwned?.length && row.entrySquads?.length)
+    .map((row) => ({
+      eventNumber: row.eventNumber,
+      mostOwned: row.mostOwned!,
+      squads: row.entrySquads!,
+    }));
 }

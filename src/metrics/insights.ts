@@ -1,5 +1,13 @@
 import type { EntryInput, ResultInput, StandingRow } from "./types";
+import { gameweekWinner, woodenSpoon as woodenSpoonAward } from "./awards";
+import { averageTemplateOverlapByEntry, type EventSquadIntel } from "./squadOverlap";
 import { computeStandings } from "./standings";
+
+export interface CaptainHistoryInput {
+  entryId: string;
+  eventNumber: number;
+  captainName: string;
+}
 
 export interface InsightPerson {
   entryId: string;
@@ -52,10 +60,17 @@ export interface LeagueInsights {
   biggestFaller: RankMovementInsight | null;
   leagueAverageGw: number | null;
   seasonBestGw: SeasonBestGwInsight | null;
+  seasonWorstGw: SeasonBestGwInsight | null;
+  mostGameweekWins: ValueInsight | null;
+  seasonWoodenSpoonCount: ValueInsight | null;
   benchPointsLeader: ValueInsight | null;
   transferHitsLeader: ValueInsight | null;
   seasonTransferLeader: ValueInsight | null;
   captaincyLeader: CaptainInsight | null;
+  captainCopycat: ValueInsight | null;
+  captainDifferential: ValueInsight | null;
+  mostTemplate: ValueInsight | null;
+  mostContrarian: ValueInsight | null;
   mostWeeksAtTop: ValueInsight | null;
   mostWeeksLast: ValueInsight | null;
   formLeaders: FormInsight[];
@@ -72,6 +87,94 @@ function person(
     managerName: e?.managerName ?? "Unknown",
     teamName: e?.teamName ?? "Unknown",
   };
+}
+
+function bottomByCount(
+  counts: ReadonlyMap<string, number>,
+  entryMap: ReadonlyMap<string, EntryInput>,
+): ValueInsight | null {
+  let worst: ValueInsight | null = null;
+  for (const [entryId, count] of counts) {
+    if (
+      !worst ||
+      count < worst.value ||
+      (count === worst.value &&
+        person(entryId, entryMap).managerName.localeCompare(worst.managerName) < 0)
+    ) {
+      worst = { ...person(entryId, entryMap), value: count };
+    }
+  }
+  return worst;
+}
+
+function topByNumericValue(
+  values: ReadonlyMap<string, number>,
+  entryMap: ReadonlyMap<string, EntryInput>,
+  direction: "high" | "low",
+): ValueInsight | null {
+  let best: ValueInsight | null = null;
+  for (const [entryId, value] of values) {
+    if (
+      !best ||
+      (direction === "high" ? value > best.value : value < best.value) ||
+      (value === best.value &&
+        person(entryId, entryMap).managerName.localeCompare(best.managerName) < 0)
+    ) {
+      best = { ...person(entryId, entryMap), value };
+    }
+  }
+  return best;
+}
+
+function countAwardWins(
+  results: ReadonlyArray<ResultInput>,
+  throughEvent: number,
+  awardFn: (results: ReadonlyArray<ResultInput>, eventNumber: number) => { entryIds: string[] } | null,
+): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (let event = 1; event <= throughEvent; event++) {
+    const award = awardFn(results, event);
+    if (!award) continue;
+    for (const entryId of award.entryIds) {
+      counts.set(entryId, (counts.get(entryId) ?? 0) + 1);
+    }
+  }
+  return counts;
+}
+
+function countCaptainHerdMatches(
+  captainHistory: ReadonlyArray<CaptainHistoryInput>,
+  throughEvent: number,
+): Map<string, number> {
+  const copycatCounts = new Map<string, number>();
+  for (const row of captainHistory) {
+    if (row.eventNumber > throughEvent || !row.captainName) continue;
+    if (!copycatCounts.has(row.entryId)) copycatCounts.set(row.entryId, 0);
+  }
+
+  for (let event = 1; event <= throughEvent; event++) {
+    const gwCaptains = captainHistory.filter(
+      (row) => row.eventNumber === event && row.captainName.length > 0,
+    );
+    if (gwCaptains.length === 0) continue;
+
+    const freq = new Map<string, number>();
+    for (const row of gwCaptains) {
+      freq.set(row.captainName, (freq.get(row.captainName) ?? 0) + 1);
+    }
+    const maxFreq = Math.max(...freq.values());
+    const herdCaptains = new Set(
+      [...freq.entries()].filter(([, count]) => count === maxFreq).map(([name]) => name),
+    );
+
+    for (const row of gwCaptains) {
+      if (herdCaptains.has(row.captainName)) {
+        copycatCounts.set(row.entryId, (copycatCounts.get(row.entryId) ?? 0) + 1);
+      }
+    }
+  }
+
+  return copycatCounts;
 }
 
 function topByCount(
@@ -160,6 +263,8 @@ export function computeLeagueInsights(
   options: {
     entryMeta?: ReadonlyMap<string, EntryMetaInput>;
     captainByEntry?: ReadonlyMap<string, { name: string; points: number | null }>;
+    captainHistory?: ReadonlyArray<CaptainHistoryInput>;
+    squadIntelByEvent?: ReadonlyArray<EventSquadIntel>;
   } = {},
 ): LeagueInsights {
   const entryMap = new Map(entries.map((e) => [e.entryId, e]));
@@ -184,10 +289,18 @@ export function computeLeagueInsights(
       : null;
 
   let seasonBestGw: SeasonBestGwInsight | null = null;
+  let seasonWorstGw: SeasonBestGwInsight | null = null;
   for (const r of results) {
     if (r.eventNumber > throughEvent) continue;
     if (!seasonBestGw || r.netPoints > seasonBestGw.value) {
       seasonBestGw = {
+        ...person(r.entryId, entryMap),
+        value: r.netPoints,
+        eventNumber: r.eventNumber,
+      };
+    }
+    if (!seasonWorstGw || r.netPoints < seasonWorstGw.value) {
+      seasonWorstGw = {
         ...person(r.entryId, entryMap),
         value: r.netPoints,
         eventNumber: r.eventNumber,
@@ -274,16 +387,45 @@ export function computeLeagueInsights(
   const mostWeeksAtTop = topByCount(weeksAtTop, entryMap);
   const mostWeeksLast = topByCount(weeksLast, entryMap);
 
+  const gwWinCounts = countAwardWins(results, throughEvent, gameweekWinner);
+  const mostGameweekWins = topByCount(gwWinCounts, entryMap);
+
+  const spoonCounts = countAwardWins(results, throughEvent, woodenSpoonAward);
+  const seasonWoodenSpoonCount = topByCount(spoonCounts, entryMap);
+
+  let captainCopycat: ValueInsight | null = null;
+  let captainDifferential: ValueInsight | null = null;
+  if (options.captainHistory && options.captainHistory.length > 0) {
+    const herdMatches = countCaptainHerdMatches(options.captainHistory, throughEvent);
+    captainCopycat = topByCount(herdMatches, entryMap);
+    captainDifferential = bottomByCount(herdMatches, entryMap);
+  }
+
+  let mostTemplate: ValueInsight | null = null;
+  let mostContrarian: ValueInsight | null = null;
+  if (options.squadIntelByEvent && options.squadIntelByEvent.length > 0) {
+    const overlapByEntry = averageTemplateOverlapByEntry(options.squadIntelByEvent, throughEvent);
+    mostTemplate = topByNumericValue(overlapByEntry, entryMap, "high");
+    mostContrarian = topByNumericValue(overlapByEntry, entryMap, "low");
+  }
+
   return {
     woodenSpoon,
     biggestClimber: topMovement(standings, "up"),
     biggestFaller: topMovement(standings, "down"),
     leagueAverageGw,
     seasonBestGw,
+    seasonWorstGw,
+    mostGameweekWins,
+    seasonWoodenSpoonCount,
     benchPointsLeader,
     transferHitsLeader,
     seasonTransferLeader,
     captaincyLeader,
+    captainCopycat,
+    captainDifferential,
+    mostTemplate,
+    mostContrarian,
     mostWeeksAtTop,
     mostWeeksLast,
     formLeaders,

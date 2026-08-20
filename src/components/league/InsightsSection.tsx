@@ -59,6 +59,14 @@ export function InsightsSection({ insights, eventNumber }: InsightsSectionProps)
       label: "Best single GW (season)",
       value: `${insights.seasonBestGw.managerName} — ${insights.seasonBestGw.value} pts (GW${insights.seasonBestGw.eventNumber})`,
     },
+    insights.seasonWorstGw && {
+      label: "Worst single GW (season)",
+      value: `${insights.seasonWorstGw.managerName} — ${insights.seasonWorstGw.value} pts (GW${insights.seasonWorstGw.eventNumber})`,
+    },
+    insights.mostGameweekWins && {
+      label: "Most GW wins (season)",
+      value: `${insights.mostGameweekWins.managerName} (${insights.mostGameweekWins.value} win${insights.mostGameweekWins.value === 1 ? "" : "s"})`,
+    },
   ].filter(Boolean) as InsightItem[];
 
   const transfers: InsightItem[] = [
@@ -81,6 +89,14 @@ export function InsightsSection({ insights, eventNumber }: InsightsSectionProps)
       label: "Captaincy king",
       value: `${insights.captaincyLeader.managerName} — ${insights.captaincyLeader.captainName} (${insights.captaincyLeader.value} pts)`,
     },
+    insights.captainCopycat && {
+      label: "Captain copycat",
+      value: `${insights.captainCopycat.managerName} (${insights.captainCopycat.value} herd pick${insights.captainCopycat.value === 1 ? "" : "s"})`,
+    },
+    insights.captainDifferential && {
+      label: "Captain differential",
+      value: `${insights.captainDifferential.managerName} (${insights.captainDifferential.value} herd pick${insights.captainDifferential.value === 1 ? "" : "s"})`,
+    },
   ].filter(Boolean) as InsightItem[];
 
   const consistency: InsightItem[] = [
@@ -92,10 +108,31 @@ export function InsightsSection({ insights, eventNumber }: InsightsSectionProps)
       label: "Most weeks in last place",
       value: `${insights.mostWeeksLast.managerName} (${insights.mostWeeksLast.value} wk${insights.mostWeeksLast.value === 1 ? "" : "s"})`,
     },
+    insights.seasonWoodenSpoonCount && {
+      label: "Most GW wooden spoons (season)",
+      value: `${insights.seasonWoodenSpoonCount.managerName} (${insights.seasonWoodenSpoonCount.value} spoon${insights.seasonWoodenSpoonCount.value === 1 ? "" : "s"})`,
+    },
+  ].filter(Boolean) as InsightItem[];
+
+  const squadStyle: InsightItem[] = [
+    insights.mostTemplate && {
+      label: "Most template squad",
+      value: `${insights.mostTemplate.managerName} (${insights.mostTemplate.value}% overlap)`,
+    },
+    insights.mostContrarian && {
+      label: "Most contrarian squad",
+      value: `${insights.mostContrarian.managerName} (${insights.mostContrarian.value}% overlap)`,
+    },
   ].filter(Boolean) as InsightItem[];
 
   const hasGroups =
-    movement.length + scoring.length + transfers.length + captaincy.length + consistency.length > 0;
+    movement.length +
+      scoring.length +
+      transfers.length +
+      captaincy.length +
+      consistency.length +
+      squadStyle.length >
+    0;
   const hasForm = insights.formLeaders.length > 0;
 
   if (!hasGroups && !hasForm) return null;
@@ -110,6 +147,7 @@ export function InsightsSection({ insights, eventNumber }: InsightsSectionProps)
           {movement.length > 0 && <InsightGroup title="Movement" items={movement} />}
           {scoring.length > 0 && <InsightGroup title="Scoring" items={scoring} />}
           {consistency.length > 0 && <InsightGroup title="Consistency" items={consistency} />}
+          {squadStyle.length > 0 && <InsightGroup title="Squad style" items={squadStyle} />}
           {transfers.length > 0 && <InsightGroup title="Transfers" items={transfers} />}
           {captaincy.length > 0 && <InsightGroup title="Captaincy" items={captaincy} />}
         </div>

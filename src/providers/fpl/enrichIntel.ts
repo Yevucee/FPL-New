@@ -149,6 +149,7 @@ export async function enrichLeagueIntel(
   }
 
   const squads: number[][] = [];
+  const entrySquads: Array<{ entryId: string; starterIds: number[] }> = [];
   let fetched = 0;
 
   for (const [index, member] of members.entries()) {
@@ -165,6 +166,11 @@ export async function enrichLeagueIntel(
       ),
     });
     if (!entryRow) continue;
+
+    const starterIds = picksResponse.picks
+      .filter((p) => p.position <= 11)
+      .map((p) => p.element);
+    entrySquads.push({ entryId: entryRow.id, starterIds });
 
     const { name, points } = captainFromPicks(picksResponse.picks, playerNames);
     await db
@@ -185,11 +191,12 @@ export async function enrichLeagueIntel(
       seasonId: season.id,
       eventNumber,
       mostOwned,
+      entrySquads,
       fetchedAt: new Date(),
     })
     .onConflictDoUpdate({
       target: [eventIntel.seasonId, eventIntel.eventNumber],
-      set: { mostOwned, fetchedAt: new Date() },
+      set: { mostOwned, entrySquads, fetchedAt: new Date() },
     });
 
   return { eventNumber, managersFetched: fetched, skipped: false };

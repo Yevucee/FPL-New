@@ -72,4 +72,53 @@ describe("computeLeagueInsights", () => {
     expect(gw2.mostWeeksLast?.entryId).toBe("c");
     expect(gw2.mostWeeksLast?.value).toBe(2);
   });
+
+  it("tracks season scoring extremes and award counts", () => {
+    const gw2 = computeLeagueInsights(entries, results, 2);
+    expect(gw2.seasonBestGw?.entryId).toBe("a");
+    expect(gw2.seasonBestGw?.value).toBe(80);
+    expect(gw2.seasonWorstGw?.entryId).toBe("c");
+    expect(gw2.seasonWorstGw?.value).toBe(44);
+    expect(gw2.mostGameweekWins?.entryId).toBe("a");
+    expect(gw2.mostGameweekWins?.value).toBe(1);
+    expect(gw2.seasonWoodenSpoonCount?.entryId).toBe("b");
+    expect(gw2.seasonWoodenSpoonCount?.value).toBe(1);
+  });
+
+  it("tracks captain herd picks and squad template overlap", () => {
+    const captainHistory = [
+      { entryId: "a", eventNumber: 1, captainName: "Haaland" },
+      { entryId: "b", eventNumber: 1, captainName: "Haaland" },
+      { entryId: "c", eventNumber: 1, captainName: "Salah" },
+      { entryId: "a", eventNumber: 2, captainName: "Salah" },
+      { entryId: "b", eventNumber: 2, captainName: "Salah" },
+      { entryId: "c", eventNumber: 2, captainName: "Salah" },
+    ];
+    const squadIntelByEvent = [
+      {
+        eventNumber: 1,
+        mostOwned: [
+          { elementId: 1, webName: "Haaland", ownerCount: 2, ownerPct: 66.7 },
+          { elementId: 2, webName: "Salah", ownerCount: 1, ownerPct: 33.3 },
+        ],
+        squads: [
+          { entryId: "a", starterIds: [1, 2, 3] },
+          { entryId: "b", starterIds: [1, 99, 100] },
+          { entryId: "c", starterIds: [99, 100, 101] },
+        ],
+      },
+    ];
+
+    const insights = computeLeagueInsights(entries, results, 2, {
+      captainHistory,
+      squadIntelByEvent,
+    });
+
+    expect(insights.captainCopycat?.entryId).toBe("a");
+    expect(insights.captainCopycat?.value).toBe(2);
+    expect(insights.captainDifferential?.entryId).toBe("c");
+    expect(insights.captainDifferential?.value).toBe(1);
+    expect(insights.mostTemplate?.entryId).toBe("a");
+    expect(insights.mostContrarian?.entryId).toBe("c");
+  });
 });
