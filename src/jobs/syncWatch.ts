@@ -41,11 +41,21 @@ async function syncWatchLoop(): Promise<void> {
   }
 }
 
-/** Idempotent — safe to call from instrumentation and CLI. */
+/** Idempotent — safe to call from the start script and CLI. */
 export function startSyncWatch(): void {
   if (watchStarted) return;
   watchStarted = true;
-  void syncWatchLoop();
+  void (async () => {
+    try {
+      const synced = await runAutomatedSync({ closePool: false });
+      if (synced) {
+        console.log("[sync-watch] initial sync complete");
+      }
+    } catch (err) {
+      console.error("[sync-watch] initial sync failed:", err);
+    }
+    await syncWatchLoop();
+  })();
 }
 
 /** CLI entry when run via npm run job:sync-watch */

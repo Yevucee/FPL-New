@@ -27,8 +27,8 @@ Cron ticks every **15 minutes**. The job itself decides whether to call FPL:
 3. **History bootstrap** — import past season final tables from FPL (once, then skip)
 4. **History refresh** — rebuild reconstructed archives when former members (e.g. Dominik) are missing or new managers join
 
-Each **web deploy** starts the app immediately, runs one schedule-gated sync, and starts an
-**in-process sync watcher** (via Next.js instrumentation) that keeps 15-minute live refresh
+Each **web deploy** starts the app immediately, runs one schedule-gated sync, and keeps a
+**sync watcher process** alive alongside Next.js (same container) for 15-minute live refresh
 during PL fixtures even if sync-cron misses ticks.
 
 Force a full run locally: `FPL_SYNC_FORCE=1 npm run job:automated-sync`
