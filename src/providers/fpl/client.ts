@@ -166,6 +166,37 @@ export async function fetchAllLeagueMembers(leagueId: string): Promise<{
   return { league, members: [...members.values()] };
 }
 
+export interface LiveLeagueScore {
+  entryId: string;
+  eventTotal: number;
+  total: number;
+  rank: number;
+}
+
+/** Live GW points from the league standings endpoint (updates during fixtures). */
+export async function fetchLiveLeagueScoreboard(leagueId: string): Promise<Map<string, LiveLeagueScore>> {
+  const scores = new Map<string, LiveLeagueScore>();
+  let page = 1;
+
+  while (page <= 50) {
+    const data = await fetchLeagueStandingsPage(leagueId, page);
+    const batch = data.standings.results ?? [];
+    if (batch.length === 0) break;
+
+    for (const row of batch) {
+      scores.set(String(row.entry), {
+        entryId: String(row.entry),
+        eventTotal: row.event_total,
+        total: row.total,
+        rank: row.rank,
+      });
+    }
+    page += 1;
+  }
+
+  return scores;
+}
+
 /** Final league table rows — use for completed-season private league archives. */
 export async function fetchAllLeagueStandings(leagueId: string): Promise<{
   league: FplLeagueMeta;

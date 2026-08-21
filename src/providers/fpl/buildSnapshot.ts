@@ -5,9 +5,11 @@ import {
   fetchAllLeagueMembers,
   fetchBootstrap,
   fetchEntryHistory,
+  fetchLiveLeagueScoreboard,
   sleep,
   type FplBootstrapEvent,
   type FplEntryHistoryEvent,
+  type LiveLeagueScore,
 } from "./client";
 import { managerMetaFromHistory } from "./managerMeta";
 
@@ -49,6 +51,44 @@ function mapHistoryEvent(
     bank: row.bank,
     chip: chipByEvent.get(row.event) ?? null,
   };
+}
+
+/**
+ * Entry history lags during live gameweeks (points stay 0 until FPL finalises).
+ * Overlay live scores from the league standings endpoint, which updates in play.
+ */
+export function applyLiveLeagueScores(
+  entries: LeagueSnapshot["entries"],
+  eventNumber: number,
+  liveScores: ReadonlyMap<string, LiveLeagueScore>,
+): LeagueSnapshot["entries"] {
+  return entries.map((entry) => {
+    const live = liveScores.get(entry.providerEntryId);
+    if (!live) return entry;
+
+    const results = [...entry.results];
+    const index = results.findIndex((row) => row.eventNumber === eventNumber);
+    const previous = index >= 0 ? results[index]! : null;
+    const liveResult = {
+      eventNumber,
+      netPoints: live.eventTotal,
+      grossPoints: live.eventTotal,
+      transferCost: previous?.transferCost ?? 0,
+      totalPoints: live.total,
+      benchPoints: previous?.benchPoints ?? 0,
+      teamValue: previous?.teamValue,
+      bank: previous?.bank,
+      chip: previous?.chip ?? null,
+    };
+
+    if (index >= 0) {
+      results[index] = liveResult;
+    } else {
+      results.push(liveResult);
+    }
+
+    return { ...entry, results };
+  });
 }
 
 /**
@@ -111,6 +151,13 @@ export async function buildSnapshotFromFpl(leagueId: string): Promise<LeagueSnap
     });
   }
 
+  const currentEvent = bootstrap.events.find((event) => event.is_current);
+  let finalEntries = entries;
+  if (currentEvent && !currentEvent.finished) {
+    const liveScores = await fetchLiveLeagueScoreboard(leagueId);
+    finalEntries = applyLiveLeagueScores(entries, currentEvent.id, liveScores);
+  }
+
   return {
     provider: "fpl-public",
     season: {
@@ -126,6 +173,6 @@ export async function buildSnapshotFromFpl(leagueId: string): Promise<LeagueSnap
       timezone: leagueConfig.scoringTimezone,
     },
     events,
-    entries,
+    entries: finalEntries,
   };
 }
