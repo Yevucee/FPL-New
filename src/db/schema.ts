@@ -229,3 +229,121 @@ export type EventRow = typeof events.$inferSelect;
 export type EntryEventResult = typeof entryEventResults.$inferSelect;
 export type EventIntel = typeof eventIntel.$inferSelect;
 export type SyncRun = typeof syncRuns.$inferSelect;
+
+export const plannerProfiles = pgTable(
+  "planner_profiles",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    seasonId: uuid("season_id")
+      .notNull()
+      .references(() => seasons.id, { onDelete: "cascade" }),
+    providerEntryId: text("provider_entry_id"),
+    settings: jsonb("settings").$type<Record<string, unknown>>().notNull().default({}),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    referenceScreenshotBase64: text("reference_screenshot_base64"),
+    referenceScreenshotMime: text("reference_screenshot_mime"),
+    referenceScreenshotAt: timestamp("reference_screenshot_at", { withTimezone: true }),
+    referenceScreenshotLabel: text("reference_screenshot_label"),
+  },
+  (t) => ({
+    uqSeason: unique("uq_planner_profile_season").on(t.seasonId),
+  }),
+);
+
+export const plannerSquads = pgTable("planner_squads", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  profileId: uuid("profile_id")
+    .notNull()
+    .references(() => plannerProfiles.id, { onDelete: "cascade" }),
+  kind: text("kind").notNull(),
+  sourceEventNumber: integer("source_event_number"),
+  importedAt: timestamp("imported_at", { withTimezone: true }),
+  bankTenths: integer("bank_tenths"),
+  bankOverrideTenths: integer("bank_override_tenths"),
+  freeTransfers: integer("free_transfers"),
+  freeTransfersOverride: integer("free_transfers_override"),
+  teamValueTenths: integer("team_value_tenths"),
+  isActive: boolean("is_active").notNull().default(true),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export const plannerSquadPlayers = pgTable(
+  "planner_squad_players",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    squadId: uuid("squad_id")
+      .notNull()
+      .references(() => plannerSquads.id, { onDelete: "cascade" }),
+    elementId: integer("element_id").notNull(),
+    slot: integer("slot").notNull(),
+    isStarter: boolean("is_starter").notNull().default(false),
+    isCaptain: boolean("is_captain").notNull().default(false),
+    isViceCaptain: boolean("is_vice_captain").notNull().default(false),
+    sellPriceTenths: integer("sell_price_tenths"),
+  },
+  (t) => ({
+    uqPlayer: unique("uq_planner_squad_player").on(t.squadId, t.elementId),
+  }),
+);
+
+export const plannerScenarios = pgTable("planner_scenarios", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  profileId: uuid("profile_id")
+    .notNull()
+    .references(() => plannerProfiles.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  targetEventNumber: integer("target_event_number"),
+  chip: text("chip"),
+  captainElementId: integer("captain_element_id"),
+  viceElementId: integer("vice_element_id"),
+  benchOrder: jsonb("bench_order").$type<number[]>(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export const plannerScenarioTransfers = pgTable("planner_scenario_transfers", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  scenarioId: uuid("scenario_id")
+    .notNull()
+    .references(() => plannerScenarios.id, { onDelete: "cascade" }),
+  eventNumber: integer("event_number").notNull(),
+  elementOutId: integer("element_out_id").notNull(),
+  elementInId: integer("element_in_id").notNull(),
+  hitCost: integer("hit_cost").notNull().default(0),
+});
+
+export const plannerWatchlist = pgTable(
+  "planner_watchlist",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    profileId: uuid("profile_id")
+      .notNull()
+      .references(() => plannerProfiles.id, { onDelete: "cascade" }),
+    elementId: integer("element_id").notNull(),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => ({
+    uqWatch: unique("uq_planner_watchlist_player").on(t.profileId, t.elementId),
+  }),
+);
+
+export type PlannerProfile = typeof plannerProfiles.$inferSelect;
+export type PlannerSquad = typeof plannerSquads.$inferSelect;
+export type PlannerSquadPlayer = typeof plannerSquadPlayers.$inferSelect;
+export type PlannerScenario = typeof plannerScenarios.$inferSelect;
+export type PlannerScenarioTransfer = typeof plannerScenarioTransfers.$inferSelect;
+export type PlannerWatchlistRow = typeof plannerWatchlist.$inferSelect;
