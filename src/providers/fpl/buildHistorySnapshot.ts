@@ -83,7 +83,7 @@ export async function buildPastSeasonSnapshotFromMemberCareers(
 
   for (const [index, member] of members.entries()) {
     if (eligibleMemberIds && !eligibleMemberIds.has(member.entryId)) continue;
-    if (index > 0) await sleep(120);
+    if (index > 0) await sleep(250);
     try {
       const history = await fetchEntryHistory(member.entryId);
       const past = pastSeasonRecord(history, seasonName);
@@ -118,7 +118,7 @@ export async function buildPastSeasonSnapshotFromMemberCareers(
 
   for (const [index, historical] of selHistoricalMembers.entries()) {
     if (historical.entryId && !seenEntryIds.has(historical.entryId)) {
-      if (index > 0) await sleep(120);
+      if (index > 0) await sleep(250);
       try {
         const history = await fetchEntryHistory(historical.entryId);
         const past = pastSeasonRecord(history, seasonName);
@@ -265,7 +265,7 @@ export async function buildPastSeasonSnapshotFromLeagueStandings(
   const entries: LeagueSnapshot["entries"] = [];
 
   for (const [index, row] of rows.entries()) {
-    if (index > 0) await sleep(120);
+    if (index > 0) await sleep(250);
 
     let overallFplRank: number | null = null;
     let careerBestSeason: string | null = null;

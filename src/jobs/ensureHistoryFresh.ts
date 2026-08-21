@@ -67,10 +67,13 @@ export async function ensureHistoryFresh(
   }
 
   const targetSeasons = refreshCheck.seasons;
-  const imported = await importFplHistory(leagueId, {
-    reconstructedOnly: true,
-    seasonNames: targetSeasons,
-  });
+  const importOptions = refreshCheck.fullImport
+    ? {}
+    : {
+        reconstructedOnly: true as const,
+        seasonNames: targetSeasons,
+      };
+  const imported = await importFplHistory(leagueId, importOptions);
   return {
     action: imported > 0 ? "refreshed" : "skipped",
     reason:
