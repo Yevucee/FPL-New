@@ -36,20 +36,20 @@ async function syncedRecently(): Promise<boolean> {
  */
 export async function runAutomatedSync(
   options: RunAutomatedSyncOptions = {},
-): Promise<void> {
+): Promise<boolean> {
   const closePool = options.closePool ?? true;
 
   const schedule = await resolveAutomatedSyncSchedule(new Date(), options);
   if (!schedule.run) {
     console.log(`[automated-sync] skipped — ${schedule.reason}`);
     if (closePool) await sql.end();
-    return;
+    return false;
   }
 
   if (!options.force && process.env.FPL_SYNC_FORCE !== "1" && (await syncedRecently())) {
     console.log("[automated-sync] skipped — synced within the last few minutes");
     if (closePool) await sql.end();
-    return;
+    return false;
   }
 
   const leagueId = leagueConfig.providerId.trim();
@@ -58,40 +58,44 @@ export async function runAutomatedSync(
       "[automated-sync] LEAGUE_PROVIDER_ID not set — waiting for league renewal",
     );
     if (closePool) await sql.end();
-    return;
+    return false;
   }
 
   console.log(`[automated-sync] league=${leagueId} tier=${schedule.tier} starting`);
 
-  const snapshot = await buildSnapshotFromFpl(leagueId);
-  const counts = await importSnapshot({
-    name: "fpl-public",
-    getLeagueSnapshot: async () => snapshot,
-  });
-  console.log(
-    `[automated-sync] live season: ${snapshot.entries.length} managers, updated=${counts.updated}, removed=${counts.removed}`,
-  );
-
-  const enrich = await enrichLeagueIntel(leagueId);
-  if (enrich.skipped) {
-    console.log(`[automated-sync] enrich skipped: ${enrich.reason ?? "n/a"}`);
-  } else {
+  try {
+    const snapshot = await buildSnapshotFromFpl(leagueId);
+    const counts = await importSnapshot({
+      name: "fpl-public",
+      getLeagueSnapshot: async () => snapshot,
+    });
     console.log(
-      `[automated-sync] enrich GW${enrich.eventNumber}: ${enrich.managersFetched} squads`,
+      `[automated-sync] live season: ${snapshot.entries.length} managers, updated=${counts.updated}, removed=${counts.removed}`,
     );
-  }
 
-  const history = await ensureHistoryFresh(leagueId);
-  if (history.action === "skipped") {
-    console.log(`[automated-sync] history archive up to date — ${history.reason}`);
-  } else {
-    console.log(
-      `[automated-sync] history ${history.action}: ${history.reason} (purged=${history.purged}, imported=${history.imported})`,
-    );
-  }
+    const enrich = await enrichLeagueIntel(leagueId);
+    if (enrich.skipped) {
+      console.log(`[automated-sync] enrich skipped: ${enrich.reason ?? "n/a"}`);
+    } else {
+      console.log(
+        `[automated-sync] enrich GW${enrich.eventNumber}: ${enrich.managersFetched} squads`,
+      );
+    }
 
-  console.log("[automated-sync] done");
-  if (closePool) await sql.end();
+    const history = await ensureHistoryFresh(leagueId);
+    if (history.action === "skipped") {
+      console.log(`[automated-sync] history archive up to date — ${history.reason}`);
+    } else {
+      console.log(
+        `[automated-sync] history ${history.action}: ${history.reason} (purged=${history.purged}, imported=${history.imported})`,
+      );
+    }
+
+    console.log("[automated-sync] done");
+    return true;
+  } finally {
+    if (closePool) await sql.end();
+  }
 }
 
 async function main(): Promise<void> {
