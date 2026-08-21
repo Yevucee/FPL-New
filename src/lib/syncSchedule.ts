@@ -1,5 +1,9 @@
 import { leagueConfig } from "@/lib/leagueConfig";
-import { fetchBootstrap } from "@/providers/fpl/client";
+import {
+  fetchBootstrap,
+  fetchFixtures,
+  hasLiveFixtures,
+} from "@/providers/fpl/client";
 
 export type SyncScheduleTier = "forced" | "match" | "maintenance" | "skip";
 
@@ -82,7 +86,7 @@ function isMaintenanceSlot(parts: LondonDateTimeParts): boolean {
   return parts.minute === 0 && (MAINTENANCE_HOURS as readonly number[]).includes(parts.hour);
 }
 
-function isMatchInterval(parts: LondonDateTimeParts): boolean {
+export function isMatchInterval(parts: LondonDateTimeParts): boolean {
   return parts.minute % MATCH_INTERVAL_MINUTES === 0;
 }
 
@@ -134,8 +138,9 @@ export function shouldRunAutomatedSync(
 }
 
 /**
- * Cron decision with FPL live-GW override — when the current gameweek is live on
- * FPL, sync every 15 minutes regardless of day/time windows (e.g. Friday GW1).
+ * Cron decision with FPL live overrides — sync every 15 minutes when:
+ * 1. A PL fixture is in play (started, not finished), or
+ * 2. The current gameweek is live on FPL but outside day/time windows.
  */
 export async function resolveAutomatedSyncSchedule(
   now = new Date(),
@@ -150,6 +155,19 @@ export async function resolveAutomatedSyncSchedule(
   }
 
   try {
+    const fixtures = await fetchFixtures();
+    if (hasLiveFixtures(fixtures)) {
+      const liveCount = fixtures.filter((f) => f.started && !f.finished).length;
+      return {
+        run: true,
+        tier: "match",
+        reason:
+          liveCount === 1
+            ? "PL fixture live — 15-minute refresh"
+            : `${liveCount} PL fixtures live — 15-minute refresh`,
+      };
+    }
+
     const bootstrap = await fetchBootstrap();
     const current = bootstrap.events.find((event) => event.is_current);
     if (current && !current.finished) {
