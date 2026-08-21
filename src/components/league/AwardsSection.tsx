@@ -16,7 +16,7 @@ interface AwardCardProps {
 
 function AwardCard({ title, hint, card, suffix, emoji }: AwardCardProps) {
   return (
-    <Card className="relative overflow-hidden">
+    <Card className="relative overflow-visible">
       <div className="absolute right-3 top-3 text-2xl opacity-20">{emoji}</div>
       <CardLabel hint={hint}>{title}</CardLabel>
       {card ? (

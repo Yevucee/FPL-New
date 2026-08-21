@@ -20,7 +20,7 @@ function InsightGroup({
 }) {
   if (items.length === 0) return null;
   return (
-    <Card padding="sm">
+    <Card padding="sm" className="relative overflow-visible">
       <CardLabel hint={hint}>{title}</CardLabel>
       <ul className="mt-2 space-y-2">
         {items.map((item) => (
