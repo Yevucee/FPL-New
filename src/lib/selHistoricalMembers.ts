@@ -54,3 +54,19 @@ export function manualHistoricalEntryForSeason(
 export function allHistoricalMemberNames(): string[] {
   return selHistoricalMembers.map((member) => member.managerName);
 }
+
+/** Former members and manual overlays — always eligible for historical reconstruction. */
+export function baseHistoricalParticipantIds(): Set<string> {
+  const ids = new Set<string>();
+  for (const id of historicalMemberIds()) {
+    ids.add(id);
+  }
+  for (const member of selHistoricalMembers) {
+    for (const seasonName of Object.keys(member.seasons ?? {})) {
+      for (const row of manualHistoricalEntryForSeason(seasonName)) {
+        ids.add(row.providerEntryId);
+      }
+    }
+  }
+  return ids;
+}

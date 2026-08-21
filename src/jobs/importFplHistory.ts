@@ -7,7 +7,8 @@ import { leagueConfig } from "@/lib/leagueConfig";
 import { leagueHistoryProviderIds } from "@/lib/leagueHistoryConfig";
 import { championForSeason, selChampions } from "@/lib/selChampions";
 import { manualHistoricalEntryForSeason } from "@/lib/selHistoricalMembers";
-import { fetchAllLeagueMembers, fetchBootstrap } from "@/providers/fpl/client";
+import { eligibleReconstructionMemberIds, baseHistoricalParticipantIds } from "@/lib/selParticipants";
+import { fetchBootstrap } from "@/providers/fpl/client";
 import {
   buildPastSeasonSnapshotFromLeagueStandings,
   buildPastSeasonSnapshotFromMemberCareers,
@@ -173,15 +174,14 @@ export async function purgeReconstructedArchives(): Promise<number> {
 export async function needsReconstructedHistoryRefresh(
   currentLeagueId: string,
 ): Promise<HistoryRefreshCheck> {
-  const { members } = await fetchAllLeagueMembers(currentLeagueId);
-  const currentMemberIds = new Set(members.map((member) => member.entryId));
-
   const league = await db.query.leagues.findFirst({
     where: eq(leagues.slug, leagueConfig.slug),
   });
   if (!league) {
     return { needed: true, reason: "league not in database" };
   }
+
+  const eligibleMemberIds = await eligibleReconstructionMemberIds(league.id);
 
   const bootstrap = await fetchBootstrap();
   const currentSeason = seasonNameFromBootstrap(bootstrap.events);
@@ -234,7 +234,9 @@ export async function needsReconstructedHistoryRefresh(
     archivedMemberIds = new Set(stored.map((row) => row.providerEntryId));
   }
 
-  return reconstructedHistoryStale(currentMemberIds, archivedMemberIds, missingArchiveSeasons);
+  return reconstructedHistoryStale(archivedMemberIds, missingArchiveSeasons, {
+    eligibleMemberIds,
+  });
 }
 
 /**
@@ -249,6 +251,13 @@ export async function importFplHistory(
   const historyIds = leagueHistoryProviderIds();
   const bootstrap = await fetchBootstrap();
   const currentSeason = seasonNameFromBootstrap(bootstrap.events);
+
+  const league = await db.query.leagues.findFirst({
+    where: eq(leagues.slug, leagueConfig.slug),
+  });
+  let eligibleMemberIds = league
+    ? await eligibleReconstructionMemberIds(league.id)
+    : baseHistoricalParticipantIds();
 
   const officialSeasons =
     options.reconstructedOnly
@@ -298,6 +307,9 @@ export async function importFplHistory(
       { mode: "history" },
     );
     imported += 1;
+    for (const entry of snapshot.entries) {
+      eligibleMemberIds.add(entry.providerEntryId);
+    }
     console.log(
       `[importFplHistory] ${seasonName} official league ${historicalLeagueId}: ${snapshot.entries.length} managers`,
     );
@@ -311,6 +323,10 @@ export async function importFplHistory(
       const snapshot = await buildPastSeasonSnapshotFromMemberCareers(
         currentLeagueId,
         seasonName,
+        {
+          eligibleMemberIds:
+            eligibleMemberIds.size > 0 ? eligibleMemberIds : undefined,
+        },
       );
       if (!snapshotMatchesChampion(snapshot, champion.winner)) {
         console.warn(
