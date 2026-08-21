@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 
+import { TooltipLabel } from "./TooltipLabel";
+
 interface CardProps {
   children: ReactNode;
   className?: string;
@@ -22,10 +24,17 @@ export function Card({ children, className = "", padding = "md" }: CardProps) {
   );
 }
 
-export function CardLabel({ children }: { children: ReactNode }) {
-  return (
+export function CardLabel({
+  children,
+  hint,
+}: {
+  children: ReactNode;
+  hint?: string;
+}) {
+  const label = (
     <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-      {children}
+      {hint ? <TooltipLabel hint={hint}>{children}</TooltipLabel> : children}
     </p>
   );
+  return label;
 }
