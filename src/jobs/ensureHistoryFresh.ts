@@ -67,17 +67,17 @@ export async function ensureHistoryFresh(
   }
 
   const targetSeasons = refreshCheck.seasons;
-  const purged = targetSeasons?.length
-    ? await purgeReconstructedSeasonArchives(targetSeasons)
-    : await purgeReconstructedArchives();
   const imported = await importFplHistory(leagueId, {
     reconstructedOnly: true,
     seasonNames: targetSeasons,
   });
   return {
-    action: "refreshed",
-    reason: refreshCheck.reason,
-    purged,
+    action: imported > 0 ? "refreshed" : "skipped",
+    reason:
+      imported > 0
+        ? refreshCheck.reason
+        : `${refreshCheck.reason} — import produced 0 seasons`,
+    purged: 0,
     imported,
   };
 }
