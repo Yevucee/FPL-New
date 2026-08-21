@@ -1,30 +1,54 @@
 import "dotenv/config";
 
-import { sql } from "@/db/client";
+import { desc, eq } from "drizzle-orm";
+
+import { db, sql } from "@/db/client";
+import { syncRuns } from "@/db/schema";
 import { importSnapshot } from "@/ingestion/importSnapshot";
 import { leagueConfig } from "@/lib/leagueConfig";
-import { leagueHistoryProviderIds } from "@/lib/leagueHistoryConfig";
 import { resolveAutomatedSyncSchedule } from "@/lib/syncSchedule";
 import { enrichLeagueIntel } from "@/providers/fpl/enrichIntel";
 import { buildSnapshotFromFpl } from "@/providers/fpl/buildSnapshot";
 
 import { ensureHistoryFresh } from "./ensureHistoryFresh";
 
+const RECENT_SYNC_MINUTES = 8;
+
+export interface RunAutomatedSyncOptions {
+  force?: boolean;
+  /** Close the Postgres pool when done (cron one-shot). Default true. */
+  closePool?: boolean;
+}
+
+async function syncedRecently(): Promise<boolean> {
+  const last = await db.query.syncRuns.findFirst({
+    where: eq(syncRuns.status, "succeeded"),
+    orderBy: desc(syncRuns.finishedAt),
+  });
+  if (!last?.finishedAt) return false;
+  const ageMs = Date.now() - last.finishedAt.getTime();
+  return ageMs < RECENT_SYNC_MINUTES * 60_000;
+}
+
 /**
- * Fully automated FPL pipeline for Railway cron — no manual steps.
- *
- * Cron ticks every 15 minutes; this job skips ticks outside match windows
- * (live-ish refresh) and off-peak maintenance slots (4× daily UK time).
- *
- * 1. Sync live season from FPL (standings, chips, transfers, manager meta)
- * 2. Enrich post-deadline intel (captain + most owned) when squads lock
- * 3. Bootstrap past seasons from configured historical league IDs
+ * Fully automated FPL pipeline — live season, enrich, history.
+ * Used by Railway cron, web startup, and the background sync watcher.
  */
-async function main(): Promise<void> {
-  const schedule = await resolveAutomatedSyncSchedule();
+export async function runAutomatedSync(
+  options: RunAutomatedSyncOptions = {},
+): Promise<void> {
+  const closePool = options.closePool ?? true;
+
+  const schedule = await resolveAutomatedSyncSchedule(new Date(), options);
   if (!schedule.run) {
     console.log(`[automated-sync] skipped — ${schedule.reason}`);
-    await sql.end();
+    if (closePool) await sql.end();
+    return;
+  }
+
+  if (!options.force && process.env.FPL_SYNC_FORCE !== "1" && (await syncedRecently())) {
+    console.log("[automated-sync] skipped — synced within the last few minutes");
+    if (closePool) await sql.end();
     return;
   }
 
@@ -33,7 +57,7 @@ async function main(): Promise<void> {
     console.log(
       "[automated-sync] LEAGUE_PROVIDER_ID not set — waiting for league renewal",
     );
-    await sql.end();
+    if (closePool) await sql.end();
     return;
   }
 
@@ -67,7 +91,11 @@ async function main(): Promise<void> {
   }
 
   console.log("[automated-sync] done");
-  await sql.end();
+  if (closePool) await sql.end();
+}
+
+async function main(): Promise<void> {
+  await runAutomatedSync({ closePool: true });
 }
 
 main().catch(async (err) => {
