@@ -17,6 +17,8 @@ Cron ticks every **15 minutes**. The job itself decides whether to call FPL:
 | When | Frequency |
 |------|-----------|
 | **Match windows** (UK time) | Every 15 min — Sat/Sun afternoons, Tue–Thu evenings, Fri deadline window |
+| **PL fixture live** | Every 15 min — when FPL reports a fixture in play (`started && !finished`) |
+| **Live gameweek** | Every 15 min — current GW unfinished on FPL (fallback if fixtures API fails) |
 | **Off-peak** | 00:00, 06:00, 12:00, 18:00 UK — catch deadlines, history bootstrap, non-match updates |
 | **Other times** | Skipped instantly (no FPL calls) |
 

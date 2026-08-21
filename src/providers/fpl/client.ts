@@ -15,6 +15,14 @@ export interface FplBootstrap {
   elements: Array<{ id: number; web_name: string }>;
 }
 
+export interface FplFixture {
+  id: number;
+  event: number;
+  started: boolean;
+  finished: boolean;
+  minutes: number;
+}
+
 export interface FplLeagueMeta {
   id: number;
   name: string;
@@ -100,6 +108,15 @@ async function fplGet<T>(path: string, attempt = 1): Promise<T> {
 
 export async function fetchBootstrap(): Promise<FplBootstrap> {
   return fplGet<FplBootstrap>("/bootstrap-static/");
+}
+
+export async function fetchFixtures(): Promise<FplFixture[]> {
+  return fplGet<FplFixture[]>("/fixtures/");
+}
+
+/** True when at least one PL fixture is in play (kick-off to full time). */
+export function hasLiveFixtures(fixtures: ReadonlyArray<Pick<FplFixture, "started" | "finished">>): boolean {
+  return fixtures.some((fixture) => fixture.started && !fixture.finished);
 }
 
 export async function fetchLeagueStandingsPage(

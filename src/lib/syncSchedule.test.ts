@@ -1,10 +1,27 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { hasLiveFixtures } from "@/providers/fpl/client";
 
 import {
   getLondonParts,
   isMatchWindow,
+  resolveAutomatedSyncSchedule,
   shouldRunAutomatedSync,
 } from "./syncSchedule";
+
+vi.mock("@/providers/fpl/client", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/providers/fpl/client")>();
+  return {
+    ...actual,
+    fetchFixtures: vi.fn(),
+    fetchBootstrap: vi.fn(),
+  };
+});
+
+import { fetchBootstrap, fetchFixtures } from "@/providers/fpl/client";
+
+const mockFetchFixtures = vi.mocked(fetchFixtures);
+const mockFetchBootstrap = vi.mocked(fetchBootstrap);
 
 /** Build a UTC Date for a UK local wall time (handles BST in summer). */
 function londonLocalToUtc(
@@ -82,5 +99,46 @@ describe("shouldRunAutomatedSync", () => {
 
     const fri2030 = londonLocalToUtc(2026, 8, 21, 20, 30);
     expect(shouldRunAutomatedSync(fri2030).run).toBe(true);
+  });
+});
+
+describe("hasLiveFixtures", () => {
+  it("detects fixtures in play", () => {
+    expect(hasLiveFixtures([{ started: true, finished: false }])).toBe(true);
+    expect(hasLiveFixtures([{ started: true, finished: true }])).toBe(false);
+    expect(hasLiveFixtures([{ started: false, finished: false }])).toBe(false);
+  });
+});
+
+describe("resolveAutomatedSyncSchedule", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("runs every 15 minutes when a PL fixture is live outside match windows", async () => {
+    mockFetchFixtures.mockResolvedValue([
+      { id: 1, event: 1, started: true, finished: false, minutes: 55 },
+    ]);
+    mockFetchBootstrap.mockResolvedValue({
+      events: [{ id: 1, name: "GW1", deadline_time: "", finished: false, data_checked: false, is_current: true, is_next: false }],
+      elements: [],
+    });
+
+    const tue1400 = londonLocalToUtc(2026, 8, 11, 14, 0);
+    const decision = await resolveAutomatedSyncSchedule(tue1400);
+    expect(decision.run).toBe(true);
+    expect(decision.tier).toBe("match");
+    expect(decision.reason).toContain("PL fixture live");
+  });
+
+  it("skips between 15-minute slots even when fixtures are live", async () => {
+    mockFetchFixtures.mockResolvedValue([
+      { id: 1, event: 1, started: true, finished: false, minutes: 22 },
+    ]);
+
+    const tue1407 = londonLocalToUtc(2026, 8, 11, 14, 7);
+    const decision = await resolveAutomatedSyncSchedule(tue1407);
+    expect(decision.run).toBe(false);
+    expect(mockFetchFixtures).not.toHaveBeenCalled();
   });
 });
