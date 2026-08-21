@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { Card, CardLabel } from "@/components/ui/Card";
+import { statHints } from "@/lib/statHints";
 import type { RivalryStats } from "@/metrics/rivalry";
 
 interface RivalryDashboardProps {
@@ -84,7 +85,7 @@ export function RivalryDashboard({
         <>
           <div className="grid gap-4 sm:grid-cols-3">
             <Card padding="sm">
-              <CardLabel>GW wins</CardLabel>
+              <CardLabel hint={statHints.gwWins}>GW wins</CardLabel>
               <p className="mt-2 text-lg font-bold text-slate-900">
                 {rivalry.managerA.managerName}{" "}
                 <span className="text-swiss-700">{rivalry.gwWinsA}</span>
@@ -97,7 +98,7 @@ export function RivalryDashboard({
               )}
             </Card>
             <Card padding="sm">
-              <CardLabel>Squad overlap</CardLabel>
+              <CardLabel hint={statHints.squadOverlap}>Squad overlap</CardLabel>
               <p className="mt-2 text-lg font-bold text-slate-900">
                 {rivalry.templateOverlapPct !== null
                   ? `${rivalry.templateOverlapPct}%`
@@ -106,14 +107,14 @@ export function RivalryDashboard({
               <p className="mt-1 text-xs text-slate-500">Average shared starters</p>
             </Card>
             <Card padding="sm">
-              <CardLabel>Same captain</CardLabel>
+              <CardLabel hint={statHints.sameCaptain}>Same captain</CardLabel>
               <p className="mt-2 text-lg font-bold text-slate-900">{rivalry.sameCaptainWeeks} wks</p>
               <p className="mt-1 text-xs text-slate-500">Identical captain picks</p>
             </Card>
           </div>
 
           <Card>
-            <CardLabel>Rank comparison · season</CardLabel>
+            <CardLabel hint={statHints.rankComparison}>Rank comparison · season</CardLabel>
             <div className="mt-3 overflow-x-auto">
               <table className="w-full min-w-[420px] text-left text-sm">
                 <thead className="text-xs font-semibold uppercase tracking-wider text-slate-500">

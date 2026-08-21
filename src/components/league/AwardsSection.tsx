@@ -1,8 +1,10 @@
 import { Card, CardLabel } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { statHints } from "@/lib/statHints";
 
 interface AwardCardProps {
   title: string;
+  hint: string;
   card: {
     value: number;
     joint: boolean;
@@ -12,11 +14,11 @@ interface AwardCardProps {
   emoji: string;
 }
 
-function AwardCard({ title, card, suffix, emoji }: AwardCardProps) {
+function AwardCard({ title, hint, card, suffix, emoji }: AwardCardProps) {
   return (
-    <Card className="relative overflow-hidden">
+    <Card className="relative overflow-visible">
       <div className="absolute right-3 top-3 text-2xl opacity-20">{emoji}</div>
-      <CardLabel>{title}</CardLabel>
+      <CardLabel hint={hint}>{title}</CardLabel>
       {card ? (
         <div className="mt-2">
           <p className="text-xl font-bold tracking-tight text-slate-900">
@@ -59,11 +61,18 @@ export function AwardsSection({
     <div className="grid gap-4 sm:grid-cols-2">
       <AwardCard
         title={gameweekTitle}
+        hint={statHints.gameweekLeader}
         card={gameweekWinner}
         suffix="pts"
         emoji="⚽"
       />
-      <AwardCard title={monthlyTitle} card={monthlyLeader} suffix="pts" emoji="📅" />
+      <AwardCard
+        title={monthlyTitle}
+        hint={statHints.monthlyLeader}
+        card={monthlyLeader}
+        suffix="pts"
+        emoji="📅"
+      />
     </div>
   );
 }
