@@ -84,10 +84,14 @@ export interface FplEntryHistory {
   chips: Array<{ name: string; event: number }>;
 }
 
-async function fplGet<T>(path: string): Promise<T> {
+async function fplGet<T>(path: string, attempt = 1): Promise<T> {
   const res = await fetch(`${FPL_BASE}${path}`, {
     headers: { "User-Agent": "swiss-expert-league-archive/0.1" },
   });
+  if ((res.status === 503 || res.status === 429) && attempt < 6) {
+    await sleep(1000 * 2 ** attempt);
+    return fplGet<T>(path, attempt + 1);
+  }
   if (!res.ok) {
     throw new Error(`FPL API ${path} returned ${res.status}`);
   }

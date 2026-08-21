@@ -26,6 +26,8 @@ export interface HistoryRefreshCheck {
   reason: string;
   /** When set, only these reconstructed seasons need rebuilding (faster deploy refresh). */
   seasons?: string[];
+  /** When true, run official + reconstructed imports (e.g. archives were purged). */
+  fullImport?: boolean;
 }
 
 function reconstructedSeasonNames(currentSeason: string): string[] {
@@ -194,6 +196,14 @@ export async function needsReconstructedHistoryRefresh(
       where: eq(seasons.name, row.season),
     });
     if (!seasonRow) missingArchiveSeasons.push(row.season);
+  }
+
+  if (missingArchiveSeasons.length > 0) {
+    return {
+      needed: true,
+      reason: `missing archive for ${missingArchiveSeasons.join(", ")}`,
+      fullImport: true,
+    };
   }
 
   const formerMemberSeasons = await seasonsMissingFormerMembers(league.id, currentSeason);
