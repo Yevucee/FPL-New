@@ -41,6 +41,16 @@ describe("isMatchWindow", () => {
     const parts = getLondonParts(londonLocalToUtc(2026, 8, 14, 18, 30));
     expect(isMatchWindow(parts)).toBe(true);
   });
+
+  it("includes Friday evening fixtures through 22:30", () => {
+    const parts = getLondonParts(londonLocalToUtc(2026, 8, 21, 21, 0));
+    expect(isMatchWindow(parts)).toBe(true);
+  });
+
+  it("excludes late Friday after match window", () => {
+    const parts = getLondonParts(londonLocalToUtc(2026, 8, 21, 23, 0));
+    expect(isMatchWindow(parts)).toBe(false);
+  });
 });
 
 describe("shouldRunAutomatedSync", () => {
@@ -63,5 +73,14 @@ describe("shouldRunAutomatedSync", () => {
     const tue0300 = londonLocalToUtc(2026, 8, 11, 3, 0);
     expect(shouldRunAutomatedSync(tue0300).run).toBe(false);
     expect(shouldRunAutomatedSync(tue0300).tier).toBe("skip");
+  });
+
+  it("runs on Friday evening 15-minute slots", () => {
+    const fri2015 = londonLocalToUtc(2026, 8, 21, 20, 15);
+    expect(shouldRunAutomatedSync(fri2015).run).toBe(true);
+    expect(shouldRunAutomatedSync(fri2015).tier).toBe("match");
+
+    const fri2030 = londonLocalToUtc(2026, 8, 21, 20, 30);
+    expect(shouldRunAutomatedSync(fri2030).run).toBe(true);
   });
 });
