@@ -1,11 +1,16 @@
+export interface ReconstructedHistoryStaleOptions {
+  /** Known SEL participants — archives must not include anyone outside this set. */
+  eligibleMemberIds?: ReadonlySet<string>;
+}
+
 /**
- * Decide whether reconstructed history archives should be rebuilt
- * (e.g. when new managers join the current league).
+ * Decide whether reconstructed history archives should be rebuilt.
+ * New first-time joiners do not trigger a rebuild; polluted archives do.
  */
 export function reconstructedHistoryStale(
-  currentMemberIds: ReadonlySet<string>,
   archivedMemberIds: ReadonlySet<string>,
   missingArchiveSeasons: readonly string[],
+  options: ReconstructedHistoryStaleOptions = {},
 ): { needed: boolean; reason: string } {
   if (missingArchiveSeasons.length > 0) {
     return {
@@ -18,14 +23,16 @@ export function reconstructedHistoryStale(
     return { needed: true, reason: "no reconstructed archives" };
   }
 
-  for (const id of currentMemberIds) {
-    if (!archivedMemberIds.has(id)) {
-      return { needed: true, reason: `new member ${id} not in archives` };
+  const eligible = options.eligibleMemberIds;
+  if (eligible && eligible.size > 0) {
+    for (const id of archivedMemberIds) {
+      if (!eligible.has(id)) {
+        return {
+          needed: true,
+          reason: `archive includes non-participant ${id}`,
+        };
+      }
     }
-  }
-
-  if (currentMemberIds.size > archivedMemberIds.size) {
-    return { needed: true, reason: "member count increased" };
   }
 
   return { needed: false, reason: "up to date" };

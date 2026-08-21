@@ -55,11 +55,22 @@ export const RECONSTRUCTED_SEASON_PROVIDER_ID = "reconstructed";
  * Valid for classic-scoring private leagues when membership was stable.
  * Validated against the chat-record champions list before import.
  */
+export interface BuildPastSeasonFromCareersOptions {
+  finalEvent?: number;
+  /** When set, only these current-league members are considered (excludes first-time joiners). */
+  eligibleMemberIds?: ReadonlySet<string>;
+}
+
 export async function buildPastSeasonSnapshotFromMemberCareers(
   currentLeagueId: string,
   seasonName: string,
-  finalEvent = DEFAULT_FINAL_EVENT,
+  options: BuildPastSeasonFromCareersOptions | number = {},
 ): Promise<LeagueSnapshot> {
+  const resolvedOptions: BuildPastSeasonFromCareersOptions =
+    typeof options === "number" ? { finalEvent: options } : options;
+  const finalEvent = resolvedOptions.finalEvent ?? DEFAULT_FINAL_EVENT;
+  const eligibleMemberIds = resolvedOptions.eligibleMemberIds;
+
   const { league, members } = await fetchAllLeagueMembers(currentLeagueId);
   const entries: LeagueSnapshot["entries"] = [];
   const seenEntryIds = new Set<string>();
@@ -71,6 +82,7 @@ export async function buildPastSeasonSnapshotFromMemberCareers(
   };
 
   for (const [index, member] of members.entries()) {
+    if (eligibleMemberIds && !eligibleMemberIds.has(member.entryId)) continue;
     if (index > 0) await sleep(120);
     const history = await fetchEntryHistory(member.entryId);
     const past = pastSeasonRecord(history, seasonName);
