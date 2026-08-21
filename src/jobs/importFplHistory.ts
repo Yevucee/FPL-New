@@ -7,8 +7,9 @@ import { leagueConfig } from "@/lib/leagueConfig";
 import { leagueHistoryProviderIds } from "@/lib/leagueHistoryConfig";
 import { championForSeason, selChampions } from "@/lib/selChampions";
 import { manualHistoricalEntryForSeason } from "@/lib/selHistoricalMembers";
-import { eligibleReconstructionMemberIds, baseHistoricalParticipantIds } from "@/lib/selParticipants";
-import { fetchBootstrap } from "@/providers/fpl/client";
+import { eligibleReconstructionMemberIds, baseHistoricalParticipantIds, fallbackReconstructionMemberIds } from "@/lib/selParticipants";
+import { fetchAllLeagueMembers, fetchBootstrap } from "@/providers/fpl/client";
+import { firstSeasonJoinerIds } from "@/lib/selFirstSeasonMembers";
 import {
   buildPastSeasonSnapshotFromLeagueStandings,
   buildPastSeasonSnapshotFromMemberCareers,
@@ -183,7 +184,10 @@ export async function needsReconstructedHistoryRefresh(
     return { needed: true, reason: "league not in database" };
   }
 
-  const eligibleMemberIds = await eligibleReconstructionMemberIds(league.id);
+  let eligibleMemberIds = await eligibleReconstructionMemberIds(league.id);
+  if (eligibleMemberIds.size <= baseHistoricalParticipantIds().size) {
+    eligibleMemberIds = await fallbackReconstructionMemberIds(currentLeagueId);
+  }
 
   const bootstrap = await fetchBootstrap();
   const currentSeason = seasonNameFromBootstrap(bootstrap.events);
@@ -268,6 +272,10 @@ export async function importFplHistory(
   let eligibleMemberIds = league
     ? await eligibleReconstructionMemberIds(league.id)
     : baseHistoricalParticipantIds();
+  if (eligibleMemberIds.size <= baseHistoricalParticipantIds().size) {
+    const fallback = await fallbackReconstructionMemberIds(currentLeagueId);
+    eligibleMemberIds = fallback;
+  }
 
   const officialSeasons =
     options.reconstructedOnly

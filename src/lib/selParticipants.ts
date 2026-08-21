@@ -52,3 +52,21 @@ export async function eligibleReconstructionMemberIds(
   }
   return ids;
 }
+
+/** When official archives are unavailable, use current league members minus first-season joiners. */
+export async function fallbackReconstructionMemberIds(
+  currentLeagueId: string,
+): Promise<Set<string>> {
+  const excluded = firstSeasonJoinerIds();
+  const { members } = await fetchAllLeagueMembers(currentLeagueId);
+  const ids = new Set<string>();
+  for (const member of members) {
+    if (!excluded.has(member.entryId)) {
+      ids.add(member.entryId);
+    }
+  }
+  for (const id of baseHistoricalParticipantIds()) {
+    ids.add(id);
+  }
+  return ids;
+}
