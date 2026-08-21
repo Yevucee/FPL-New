@@ -263,7 +263,9 @@ async function applySnapshot(
 
   // Drop managers who left the league (or stale dev/fixture rows). Upserts above
   // still add new joiners on every sync — this only removes IDs absent from FPL.
-  if (mode === "live" && snapshot.entries.length > 0) {
+  // History imports also prune entries removed from reconstructed/official snapshots
+  // (e.g. first-time joiners who should not appear in past seasons).
+  if (snapshot.entries.length > 0) {
     const currentEntryIds = snapshot.entries.map((entry) => entry.providerEntryId);
     const removed = await db
       .delete(seasonEntries)
@@ -275,7 +277,9 @@ async function applySnapshot(
         ),
       )
       .returning({ id: seasonEntries.id });
-    counts.removed = removed.length;
+    if (mode === "live") {
+      counts.removed = removed.length;
+    }
   }
 }
 

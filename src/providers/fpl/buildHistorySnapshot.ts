@@ -84,32 +84,36 @@ export async function buildPastSeasonSnapshotFromMemberCareers(
   for (const [index, member] of members.entries()) {
     if (eligibleMemberIds && !eligibleMemberIds.has(member.entryId)) continue;
     if (index > 0) await sleep(120);
-    const history = await fetchEntryHistory(member.entryId);
-    const past = pastSeasonRecord(history, seasonName);
-    if (!past) continue;
-    const meta = managerMetaFromHistory(history, seasonName);
+    try {
+      const history = await fetchEntryHistory(member.entryId);
+      const past = pastSeasonRecord(history, seasonName);
+      if (!past) continue;
+      const meta = managerMetaFromHistory(history, seasonName);
 
-    addEntry({
-      providerEntryId: member.entryId,
-      managerName: member.managerName,
-      teamName: member.teamName,
-      joinEvent: 1,
-      overallFplRank: past.overallRank,
-      careerBestSeason: meta.careerBestSeason,
-      careerBestPoints: meta.careerBestPoints,
-      seasonTransfers: 0,
-      results: [
-        {
-          eventNumber: finalEvent,
-          netPoints: past.totalPoints,
-          grossPoints: past.totalPoints,
-          transferCost: 0,
-          totalPoints: past.totalPoints,
-          benchPoints: 0,
-          chip: null,
-        },
-      ],
-    });
+      addEntry({
+        providerEntryId: member.entryId,
+        managerName: member.managerName,
+        teamName: member.teamName,
+        joinEvent: 1,
+        overallFplRank: past.overallRank,
+        careerBestSeason: meta.careerBestSeason,
+        careerBestPoints: meta.careerBestPoints,
+        seasonTransfers: 0,
+        results: [
+          {
+            eventNumber: finalEvent,
+            netPoints: past.totalPoints,
+            grossPoints: past.totalPoints,
+            transferCost: 0,
+            totalPoints: past.totalPoints,
+            benchPoints: 0,
+            chip: null,
+          },
+        ],
+      });
+    } catch {
+      // Skip this manager when FPL history is temporarily unavailable.
+    }
   }
 
   for (const [index, historical] of selHistoricalMembers.entries()) {
