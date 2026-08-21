@@ -4,7 +4,7 @@ import { sql } from "@/db/client";
 import { importSnapshot } from "@/ingestion/importSnapshot";
 import { leagueConfig } from "@/lib/leagueConfig";
 import { leagueHistoryProviderIds } from "@/lib/leagueHistoryConfig";
-import { shouldRunAutomatedSync } from "@/lib/syncSchedule";
+import { resolveAutomatedSyncSchedule } from "@/lib/syncSchedule";
 import { enrichLeagueIntel } from "@/providers/fpl/enrichIntel";
 import { buildSnapshotFromFpl } from "@/providers/fpl/buildSnapshot";
 
@@ -21,7 +21,7 @@ import { ensureHistoryFresh } from "./ensureHistoryFresh";
  * 3. Bootstrap past seasons from configured historical league IDs
  */
 async function main(): Promise<void> {
-  const schedule = shouldRunAutomatedSync();
+  const schedule = await resolveAutomatedSyncSchedule();
   if (!schedule.run) {
     console.log(`[automated-sync] skipped — ${schedule.reason}`);
     await sql.end();

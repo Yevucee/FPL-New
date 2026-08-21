@@ -1,4 +1,5 @@
 import { leagueConfig } from "@/lib/leagueConfig";
+import { fetchBootstrap } from "@/providers/fpl/client";
 
 export type SyncScheduleTier = "forced" | "match" | "maintenance" | "skip";
 
@@ -65,8 +66,8 @@ export function isMatchWindow(parts: LondonDateTimeParts): boolean {
       return h >= 11 && h < 22.5;
     case 0: // Sunday
       return h >= 11 && h < 21;
-    case 5: // Friday — GW deadline (~18:30) + squad lock enrich
-      return h >= 17 && h < 20.5;
+    case 5: // Friday — GW deadline + evening fixtures (extend through typical kick-offs)
+      return h >= 17 && h < 22.5;
     case 1: // Monday — occasional fixtures
     case 2: // Tuesday
     case 3: // Wednesday
@@ -130,4 +131,37 @@ export function shouldRunAutomatedSync(
     tier: "skip",
     reason: "outside match windows and maintenance slots",
   };
+}
+
+/**
+ * Cron decision with FPL live-GW override — when the current gameweek is live on
+ * FPL, sync every 15 minutes regardless of day/time windows (e.g. Friday GW1).
+ */
+export async function resolveAutomatedSyncSchedule(
+  now = new Date(),
+  options?: { force?: boolean },
+): Promise<SyncScheduleDecision> {
+  const base = shouldRunAutomatedSync(now, options);
+  if (base.run) return base;
+
+  const parts = getLondonParts(now);
+  if (!isMatchInterval(parts)) {
+    return base;
+  }
+
+  try {
+    const bootstrap = await fetchBootstrap();
+    const current = bootstrap.events.find((event) => event.is_current);
+    if (current && !current.finished) {
+      return {
+        run: true,
+        tier: "match",
+        reason: `GW${current.id} live on FPL — 15-minute refresh`,
+      };
+    }
+  } catch {
+    // Keep the schedule skip if FPL is unreachable.
+  }
+
+  return base;
 }
