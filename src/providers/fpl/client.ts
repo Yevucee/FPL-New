@@ -18,6 +18,7 @@ export interface FplBootstrap {
 export interface FplFixture {
   id: number;
   event: number;
+  kickoff_time: string | null;
   started: boolean;
   finished: boolean;
   minutes: number;

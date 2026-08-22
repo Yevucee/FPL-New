@@ -27,6 +27,8 @@ export type ImportSnapshotMode = "live" | "history";
 export interface ImportSnapshotOptions {
   /** `live` activates the season and archives other active seasons. `history` writes summary archives only. */
   mode?: ImportSnapshotMode;
+  /** Override sync_runs.scope (e.g. schedule:post-deadline-gw1). */
+  scope?: string;
 }
 
 /**
@@ -41,12 +43,14 @@ export async function importSnapshot(
   options: ImportSnapshotOptions = {},
 ): Promise<ImportCounts> {
   const mode = options.mode ?? "live";
+  const defaultScope = mode === "history" ? "league-history" : "league-current";
+  const scope = options.scope ?? defaultScope;
   const correlationId = crypto.randomUUID();
   const [run] = await db
     .insert(syncRuns)
     .values({
       provider: provider.name,
-      scope: mode === "history" ? "league-history" : "league-current",
+      scope,
       status: "running",
       correlationId,
       codeVersion: process.env.GIT_SHA ?? "dev",

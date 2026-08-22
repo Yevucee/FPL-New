@@ -16,11 +16,13 @@ Cron ticks every **15 minutes**. The job itself decides whether to call FPL:
 
 | When | Frequency |
 |------|-----------|
-| **Match windows** (UK time) | Every 15 min — Sat/Sun afternoons, Tue–Thu evenings, Fri deadline window |
-| **PL fixture live** | Every 15 min — when FPL reports a fixture in play (`started && !finished`) |
-| **Live gameweek** | Every 15 min — current GW unfinished on FPL (fallback if fixtures API fails) |
-| **Off-peak** | 00:00, 06:00, 12:00, 18:00 UK — catch deadlines, history bootstrap, non-match updates |
-| **Other times** | Skipped instantly (no FPL calls) |
+| **PL fixture live** | Every 15 min — while FPL reports a game in play |
+| **Post-whistle buffer** | Every 15 min — up to 15 min after a fixture ends |
+| **GW deadline** | Once — ~10 min after FPL `deadline_time` (any day of week) |
+| **End of fixture day** | Once — 1 hour after the last game that UK calendar day finishes |
+| **Morning after** | Once — 08:00 UK the day after fixtures were played |
+| **GW finalised** | Once — when FPL marks the GW `finished` + `data_checked` |
+| **Other times** | Skipped — no FPL calls |
 
 1. **Live season** — fetch FPL standings, GW scores, chips, transfers, manager meta
 2. **Post-deadline enrich** — captain picks + most-owned (only after GW deadline)

@@ -7,31 +7,34 @@ const POLL_MS = 15_000;
 
 let watchStarted = false;
 
-/** Background loop — checks every 15s and runs schedule-gated sync on each 15-min UK slot. */
+/** Background loop — live sync on 15-min slots; one-offs run as soon as due. */
 async function syncWatchLoop(): Promise<void> {
-  let lastSyncedSlot = "";
+  let lastLiveSlot = "";
 
-  console.log("[sync-watch] started — polling for 15-minute live sync slots");
+  console.log("[sync-watch] started — fixture-driven sync polling");
 
   while (true) {
     try {
       const now = new Date();
       const parts = getLondonParts(now);
+      const schedule = await resolveAutomatedSyncSchedule(now);
 
-      if (!isMatchInterval(parts)) {
-        lastSyncedSlot = "";
-      } else {
-        const slot = `${parts.dayOfWeek}-${parts.hour}-${parts.minute}`;
-        if (slot !== lastSyncedSlot) {
-          const schedule = await resolveAutomatedSyncSchedule(now);
-          if (schedule.run) {
-            console.log(`[sync-watch] triggering sync — ${schedule.reason}`);
+      if (schedule.run) {
+        if (schedule.scheduleKey) {
+          console.log(`[sync-watch] scheduled sync — ${schedule.reason}`);
+          await runAutomatedSync({ closePool: false });
+        } else if (isMatchInterval(parts)) {
+          const slot = `${parts.dayOfWeek}-${parts.hour}-${parts.minute}`;
+          if (slot !== lastLiveSlot) {
+            console.log(`[sync-watch] live sync — ${schedule.reason}`);
             const synced = await runAutomatedSync({ closePool: false });
-            if (synced) {
-              lastSyncedSlot = slot;
-            }
+            if (synced) lastLiveSlot = slot;
           }
         }
+      }
+
+      if (!isMatchInterval(parts)) {
+        lastLiveSlot = "";
       }
     } catch (err) {
       console.error("[sync-watch] tick failed:", err);
@@ -46,13 +49,18 @@ export function startSyncWatch(): void {
   if (watchStarted) return;
   watchStarted = true;
   void (async () => {
-    try {
-      const synced = await runAutomatedSync({ closePool: false });
-      if (synced) {
-        console.log("[sync-watch] initial sync complete");
+    const schedule = await resolveAutomatedSyncSchedule(new Date());
+    if (schedule.run) {
+      try {
+        const synced = await runAutomatedSync({ closePool: false });
+        if (synced) {
+          console.log("[sync-watch] initial sync complete");
+        }
+      } catch (err) {
+        console.error("[sync-watch] initial sync failed:", err);
       }
-    } catch (err) {
-      console.error("[sync-watch] initial sync failed:", err);
+    } else {
+      console.log(`[sync-watch] initial sync skipped — ${schedule.reason}`);
     }
     await syncWatchLoop();
   })();
