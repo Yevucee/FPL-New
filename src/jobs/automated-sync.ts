@@ -6,6 +6,7 @@ import { db, sql } from "@/db/client";
 import { syncRuns } from "@/db/schema";
 import { importSnapshot } from "@/ingestion/importSnapshot";
 import { leagueConfig } from "@/lib/leagueConfig";
+import { scheduleScopeForKey } from "@/lib/syncScheduleState";
 import { resolveAutomatedSyncSchedule } from "@/lib/syncSchedule";
 import { enrichLeagueIntel } from "@/providers/fpl/enrichIntel";
 import { buildSnapshotFromFpl } from "@/providers/fpl/buildSnapshot";
@@ -46,7 +47,12 @@ export async function runAutomatedSync(
     return false;
   }
 
-  if (!options.force && process.env.FPL_SYNC_FORCE !== "1" && (await syncedRecently())) {
+  if (
+    !options.force &&
+    process.env.FPL_SYNC_FORCE !== "1" &&
+    !schedule.scheduleKey &&
+    (await syncedRecently())
+  ) {
     console.log("[automated-sync] skipped — synced within the last few minutes");
     if (closePool) await sql.end();
     return false;
@@ -61,14 +67,20 @@ export async function runAutomatedSync(
     return false;
   }
 
-  console.log(`[automated-sync] league=${leagueId} tier=${schedule.tier} starting`);
+  console.log(`[automated-sync] league=${leagueId} tier=${schedule.tier} — ${schedule.reason}`);
 
   try {
     const snapshot = await buildSnapshotFromFpl(leagueId);
-    const counts = await importSnapshot({
-      name: "fpl-public",
-      getLeagueSnapshot: async () => snapshot,
-    });
+    const importScope = schedule.scheduleKey
+      ? scheduleScopeForKey(schedule.scheduleKey)
+      : undefined;
+    const counts = await importSnapshot(
+      {
+        name: "fpl-public",
+        getLeagueSnapshot: async () => snapshot,
+      },
+      { scope: importScope },
+    );
     console.log(
       `[automated-sync] live season: ${snapshot.entries.length} managers, updated=${counts.updated}, removed=${counts.removed}`,
     );
