@@ -15,8 +15,10 @@ import {
   fetchAllLeagueMembers,
   fetchBootstrap,
   fetchEntryPicks,
+  fetchEventLive,
   latestLockedEvent,
   benchPointsFromPicks,
+  livePointsByElement,
   playerNameMap,
   sleep,
   type FplPickWithStats,
@@ -46,6 +48,7 @@ function pickDerivedFields(
   picksResponse: { active_chip: string | null; picks: ReadonlyArray<FplPickWithStats> },
   playerNames: ReadonlyMap<number, string>,
   storedChip?: string | null,
+  livePoints?: ReadonlyMap<number, number>,
 ): {
   captainName: string | null;
   captainPoints: number | null;
@@ -53,7 +56,8 @@ function pickDerivedFields(
 } {
   const { name, points } = captainFromPicks(picksResponse.picks, playerNames);
   const chip = (picksResponse.active_chip ?? storedChip ?? "").toLowerCase();
-  const benchBoostPoints = chip === "bboost" ? benchPointsFromPicks(picksResponse.picks) : null;
+  const benchBoostPoints =
+    chip === "bboost" ? benchPointsFromPicks(picksResponse.picks, livePoints) : null;
   return { captainName: name, captainPoints: points, benchBoostPoints };
 }
 
@@ -63,6 +67,7 @@ async function refreshPickDerivedFields(args: {
   eventNumber: number;
   members: Array<{ entryId: string }>;
   playerNames: ReadonlyMap<number, string>;
+  livePoints?: ReadonlyMap<number, number>;
 }): Promise<EnrichIntelResult> {
   let fetched = 0;
   for (const [index, member] of args.members.entries()) {
@@ -90,6 +95,7 @@ async function refreshPickDerivedFields(args: {
       picksResponse,
       args.playerNames,
       resultRow?.chip,
+      args.livePoints,
     );
     await db
       .update(entryEventResults)
@@ -151,6 +157,9 @@ export async function enrichLeagueIntel(
 
   const { members } = await fetchAllLeagueMembers(leagueId);
   const playerNames = playerNameMap(bootstrap.elements);
+  const livePoints = isLiveGameweek
+    ? livePointsByElement(await fetchEventLive(eventNumber))
+    : undefined;
 
   if (!options.force) {
     const existing = await db.query.eventIntel.findFirst({
@@ -171,6 +180,7 @@ export async function enrichLeagueIntel(
         eventRowId: eventRow.id,
         members,
         playerNames,
+        livePoints,
       });
     }
   }
@@ -210,6 +220,7 @@ export async function enrichLeagueIntel(
       picksResponse,
       playerNames,
       resultRow?.chip,
+      livePoints,
     );
     await db
       .update(entryEventResults)

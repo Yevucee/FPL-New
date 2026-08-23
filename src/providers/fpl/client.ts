@@ -24,6 +24,10 @@ export interface FplFixture {
   minutes: number;
 }
 
+export interface FplLiveEvent {
+  elements: Array<{ id: number; stats: { total_points: number } }>;
+}
+
 export interface FplLeagueMeta {
   id: number;
   name: string;
@@ -113,6 +117,14 @@ export async function fetchBootstrap(): Promise<FplBootstrap> {
 
 export async function fetchFixtures(): Promise<FplFixture[]> {
   return fplGet<FplFixture[]>("/fixtures/");
+}
+
+export async function fetchEventLive(eventNumber: number): Promise<FplLiveEvent> {
+  return fplGet<FplLiveEvent>(`/event/${eventNumber}/live/`);
+}
+
+export function livePointsByElement(live: FplLiveEvent): Map<number, number> {
+  return new Map(live.elements.map((element) => [element.id, element.stats.total_points]));
 }
 
 /** True when at least one PL fixture is in play (kick-off to full time). */
@@ -286,10 +298,17 @@ export function sleep(ms: number): Promise<void> {
 }
 
 /** Sum live/final points for bench slots (positions 12–15). */
-export function benchPointsFromPicks(picks: ReadonlyArray<FplPickWithStats>): number {
+export function benchPointsFromPicks(
+  picks: ReadonlyArray<FplPickWithStats>,
+  livePointsByElement?: ReadonlyMap<number, number>,
+): number {
   return picks
     .filter((pick) => pick.position >= 12)
-    .reduce((sum, pick) => sum + (pick.stats?.total_points ?? 0), 0);
+    .reduce((sum, pick) => {
+      const fromPick = pick.stats?.total_points;
+      if (fromPick != null) return sum + fromPick;
+      return sum + (livePointsByElement?.get(pick.element) ?? 0);
+    }, 0);
 }
 
 export function playerNameMap(
