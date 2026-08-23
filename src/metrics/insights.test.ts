@@ -85,6 +85,30 @@ describe("computeLeagueInsights", () => {
     expect(gw2.seasonWoodenSpoonCount?.value).toBe(1);
   });
 
+  it("uses chip-specific points for best chip weeks", () => {
+    const chipResults: ResultInput[] = [
+      result("a", 3, 95, { chip: "bboost", benchPoints: 18 }),
+      result("b", 5, 102, { chip: "bboost", benchPoints: 24 }),
+      result("a", 6, 88, { chip: "freehit" }),
+      result("b", 7, 91, { chip: "freehit" }),
+      result("a", 8, 70, { chip: "3xc" }),
+      result("b", 9, 80, { chip: "3xc" }),
+    ];
+    const captainPointsHistory = [
+      { entryId: "a", eventNumber: 8, points: 21 },
+      { entryId: "b", eventNumber: 9, points: 36 },
+    ];
+
+    const insights = computeLeagueInsights(entries, chipResults, 9, { captainPointsHistory });
+
+    expect(insights.bestBenchBoost?.entryId).toBe("b");
+    expect(insights.bestBenchBoost?.value).toBe(24);
+    expect(insights.bestFreeHit?.entryId).toBe("b");
+    expect(insights.bestFreeHit?.value).toBe(91);
+    expect(insights.bestTripleCaptain?.entryId).toBe("b");
+    expect(insights.bestTripleCaptain?.value).toBe(36);
+  });
+
   it("tracks captain herd picks and squad template overlap", () => {
     const captainHistory = [
       { entryId: "a", eventNumber: 1, captainName: "Haaland" },
