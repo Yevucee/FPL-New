@@ -181,15 +181,18 @@ function bestChipWeek(
   chip: string,
   throughEvent: number,
   entryMap: ReadonlyMap<string, EntryInput>,
+  pickValue: (result: ResultInput) => number | null,
 ): ChipWeekInsight | null {
   let best: ChipWeekInsight | null = null;
   for (const result of results) {
     if (result.eventNumber > throughEvent) continue;
     if ((result.chip ?? "").toLowerCase() !== chip) continue;
-    if (!best || result.netPoints > best.value) {
+    const value = pickValue(result);
+    if (value == null) continue;
+    if (!best || value > best.value) {
       best = {
         ...person(result.entryId, entryMap),
-        value: result.netPoints,
+        value,
         eventNumber: result.eventNumber,
         chip,
         chipLabel: formatChipName(chip),
@@ -500,9 +503,34 @@ export function computeLeagueInsights(
     bestFplRank = topByNumericValue(rankValues, entryMap, "low");
   }
 
-  const bestBenchBoost = bestChipWeek(results, "bboost", throughEvent, entryMap);
-  const bestFreeHit = bestChipWeek(results, "freehit", throughEvent, entryMap);
-  const bestTripleCaptain = bestChipWeek(results, "3xc", throughEvent, entryMap);
+  const captainPointsByEntryEvent = new Map<string, number>();
+  if (options.captainPointsHistory) {
+    for (const row of options.captainPointsHistory) {
+      captainPointsByEntryEvent.set(`${row.entryId}:${row.eventNumber}`, row.points);
+    }
+  }
+
+  const bestBenchBoost = bestChipWeek(
+    results,
+    "bboost",
+    throughEvent,
+    entryMap,
+    (row) => row.benchPoints,
+  );
+  const bestFreeHit = bestChipWeek(
+    results,
+    "freehit",
+    throughEvent,
+    entryMap,
+    (row) => row.netPoints,
+  );
+  const bestTripleCaptain = bestChipWeek(
+    results,
+    "3xc",
+    throughEvent,
+    entryMap,
+    (row) => captainPointsByEntryEvent.get(`${row.entryId}:${row.eventNumber}`) ?? null,
+  );
 
   let captainCopycat: ValueInsight | null = null;
   let captainDifferential: ValueInsight | null = null;
