@@ -229,6 +229,7 @@ async function applySnapshot(
       const resultMeta = r as {
         captainName?: string | null;
         captainPoints?: number | null;
+        benchBoostPoints?: number | null;
       };
       await db
         .insert(entryEventResults)
@@ -240,6 +241,7 @@ async function applySnapshot(
           transferCost: r.transferCost,
           totalPoints: r.totalPoints,
           benchPoints: r.benchPoints,
+          benchBoostPoints: resultMeta.benchBoostPoints ?? null,
           chip: r.chip ?? null,
           captainName: resultMeta.captainName ?? null,
           captainPoints: resultMeta.captainPoints ?? null,
@@ -254,6 +256,7 @@ async function applySnapshot(
             transferCost: r.transferCost,
             totalPoints: r.totalPoints,
             benchPoints: r.benchPoints,
+            benchBoostPoints: resultMeta.benchBoostPoints ?? null,
             chip: r.chip ?? null,
             captainName: resultMeta.captainName ?? null,
             captainPoints: resultMeta.captainPoints ?? null,

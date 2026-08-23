@@ -5,7 +5,11 @@ import {
   fetchAllLeagueMembers,
   fetchBootstrap,
   fetchEntryHistory,
+  fetchEntryPicks,
+  fetchEventLive,
   fetchLiveLeagueScoreboard,
+  benchPointsFromPicks,
+  livePointsByElement,
   sleep,
   type FplBootstrapEvent,
   type FplEntryHistoryEvent,
@@ -76,6 +80,7 @@ export function applyLiveLeagueScores(
       transferCost: previous?.transferCost ?? 0,
       totalPoints: live.total,
       benchPoints: previous?.benchPoints ?? 0,
+      benchBoostPoints: previous?.benchBoostPoints ?? null,
       teamValue: previous?.teamValue,
       bank: previous?.bank,
       chip: previous?.chip ?? null,
@@ -89,6 +94,42 @@ export function applyLiveLeagueScores(
 
     return { ...entry, results };
   });
+}
+
+async function applyBenchBoostPoints(
+  entries: LeagueSnapshot["entries"],
+  eventNumber: number,
+  livePoints?: ReadonlyMap<number, number>,
+): Promise<LeagueSnapshot["entries"]> {
+  const updated: LeagueSnapshot["entries"] = [];
+  let fetched = 0;
+
+  for (const entry of entries) {
+    const result = entry.results.find((row) => row.eventNumber === eventNumber);
+    if ((result?.chip ?? "").toLowerCase() !== "bboost") {
+      updated.push(entry);
+      continue;
+    }
+
+    if (fetched > 0) await sleep(120);
+    fetched += 1;
+
+    const picksResponse = await fetchEntryPicks(entry.providerEntryId, eventNumber);
+    if (!picksResponse) {
+      updated.push(entry);
+      continue;
+    }
+
+    const benchBoostPoints = benchPointsFromPicks(picksResponse.picks, livePoints);
+    updated.push({
+      ...entry,
+      results: entry.results.map((row) =>
+        row.eventNumber === eventNumber ? { ...row, benchBoostPoints } : row,
+      ),
+    });
+  }
+
+  return updated;
 }
 
 /**
@@ -153,9 +194,15 @@ export async function buildSnapshotFromFpl(leagueId: string): Promise<LeagueSnap
 
   const currentEvent = bootstrap.events.find((event) => event.is_current);
   let finalEntries = entries;
-  if (currentEvent && !currentEvent.finished) {
-    const liveScores = await fetchLiveLeagueScoreboard(leagueId);
-    finalEntries = applyLiveLeagueScores(entries, currentEvent.id, liveScores);
+  if (currentEvent) {
+    if (!currentEvent.finished) {
+      const liveScores = await fetchLiveLeagueScoreboard(leagueId);
+      finalEntries = applyLiveLeagueScores(entries, currentEvent.id, liveScores);
+    }
+    const livePoints = currentEvent.finished
+      ? undefined
+      : livePointsByElement(await fetchEventLive(currentEvent.id));
+    finalEntries = await applyBenchBoostPoints(finalEntries, currentEvent.id, livePoints);
   }
 
   return {
