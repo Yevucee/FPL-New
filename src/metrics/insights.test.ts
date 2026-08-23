@@ -23,6 +23,7 @@ function result(
     grossPoints: opts.grossPoints ?? netPoints,
     transferCost: opts.transferCost ?? 0,
     benchPoints: opts.benchPoints ?? 0,
+    benchBoostPoints: opts.benchBoostPoints ?? null,
     chip: opts.chip ?? null,
   };
 }
@@ -87,8 +88,8 @@ describe("computeLeagueInsights", () => {
 
   it("uses chip-specific points for best chip weeks", () => {
     const chipResults: ResultInput[] = [
-      result("a", 3, 95, { chip: "bboost", benchPoints: 18 }),
-      result("b", 5, 102, { chip: "bboost", benchPoints: 24 }),
+      result("a", 3, 95, { chip: "bboost", benchPoints: 0, benchBoostPoints: 18 }),
+      result("b", 5, 102, { chip: "bboost", benchPoints: 0, benchBoostPoints: 24 }),
       result("a", 6, 88, { chip: "freehit" }),
       result("b", 7, 91, { chip: "freehit" }),
       result("a", 8, 70, { chip: "3xc" }),

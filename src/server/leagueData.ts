@@ -198,6 +198,7 @@ export async function getLeagueOverview(
       grossPoints: entryEventResults.grossPoints,
       transferCost: entryEventResults.transferCost,
       benchPoints: entryEventResults.benchPoints,
+      benchBoostPoints: entryEventResults.benchBoostPoints,
       chip: entryEventResults.chip,
       captainName: entryEventResults.captainName,
       captainPoints: entryEventResults.captainPoints,
@@ -221,6 +222,7 @@ export async function getLeagueOverview(
     grossPoints: r.grossPoints,
     transferCost: r.transferCost,
     benchPoints: r.benchPoints,
+    benchBoostPoints: r.benchBoostPoints,
     chip: r.chip,
   }));
 

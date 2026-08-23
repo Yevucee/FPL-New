@@ -122,6 +122,7 @@ export const entryEventResults = pgTable(
     transferCost: integer("transfer_cost").notNull().default(0),
     totalPoints: integer("total_points").notNull().default(0),
     benchPoints: integer("bench_points").notNull().default(0),
+    benchBoostPoints: integer("bench_boost_points"),
     chip: text("chip"),
     captainName: text("captain_name"),
     captainPoints: integer("captain_points"),

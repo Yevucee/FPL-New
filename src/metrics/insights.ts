@@ -515,7 +515,7 @@ export function computeLeagueInsights(
     "bboost",
     throughEvent,
     entryMap,
-    (row) => row.benchPoints,
+    (row) => row.benchBoostPoints ?? null,
   );
   const bestFreeHit = bestChipWeek(
     results,
