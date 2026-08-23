@@ -285,6 +285,13 @@ export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/** Sum live/final points for bench slots (positions 12–15). */
+export function benchPointsFromPicks(picks: ReadonlyArray<FplPickWithStats>): number {
+  return picks
+    .filter((pick) => pick.position >= 12)
+    .reduce((sum, pick) => sum + (pick.stats?.total_points ?? 0), 0);
+}
+
 export function playerNameMap(
   elements: ReadonlyArray<{ id: number; web_name: string }>,
 ): Map<number, string> {

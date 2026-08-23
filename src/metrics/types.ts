@@ -13,6 +13,8 @@ export interface ResultInput {
   grossPoints: number;
   transferCost: number;
   benchPoints: number;
+  /** Bench player points when Bench Boost was played (FPL points_on_bench is 0 that week). */
+  benchBoostPoints?: number | null;
   chip?: string | null;
 }
 

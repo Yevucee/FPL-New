@@ -16,6 +16,7 @@ import {
   fetchBootstrap,
   fetchEntryPicks,
   latestLockedEvent,
+  benchPointsFromPicks,
   playerNameMap,
   sleep,
   type FplPickWithStats,
@@ -41,7 +42,22 @@ function captainFromPicks(
   };
 }
 
-async function refreshCaptainPointsOnly(args: {
+function pickDerivedFields(
+  picksResponse: { active_chip: string | null; picks: ReadonlyArray<FplPickWithStats> },
+  playerNames: ReadonlyMap<number, string>,
+  storedChip?: string | null,
+): {
+  captainName: string | null;
+  captainPoints: number | null;
+  benchBoostPoints: number | null;
+} {
+  const { name, points } = captainFromPicks(picksResponse.picks, playerNames);
+  const chip = (picksResponse.active_chip ?? storedChip ?? "").toLowerCase();
+  const benchBoostPoints = chip === "bboost" ? benchPointsFromPicks(picksResponse.picks) : null;
+  return { captainName: name, captainPoints: points, benchBoostPoints };
+}
+
+async function refreshPickDerivedFields(args: {
   seasonId: string;
   eventRowId: string;
   eventNumber: number;
@@ -63,10 +79,21 @@ async function refreshCaptainPointsOnly(args: {
     });
     if (!entryRow) continue;
 
-    const { name, points } = captainFromPicks(picksResponse.picks, args.playerNames);
+    const resultRow = await db.query.entryEventResults.findFirst({
+      where: and(
+        eq(entryEventResults.seasonEntryId, entryRow.id),
+        eq(entryEventResults.eventId, args.eventRowId),
+      ),
+    });
+
+    const { captainName, captainPoints, benchBoostPoints } = pickDerivedFields(
+      picksResponse,
+      args.playerNames,
+      resultRow?.chip,
+    );
     await db
       .update(entryEventResults)
-      .set({ captainName: name, captainPoints: points })
+      .set({ captainName, captainPoints, benchBoostPoints })
       .where(
         and(
           eq(entryEventResults.seasonEntryId, entryRow.id),
@@ -79,7 +106,7 @@ async function refreshCaptainPointsOnly(args: {
     eventNumber: args.eventNumber,
     managersFetched: fetched,
     skipped: false,
-    reason: "live captain refresh",
+    reason: "live pick refresh",
   };
 }
 
@@ -138,7 +165,7 @@ export async function enrichLeagueIntel(
       };
     }
     if (existing && isLiveGameweek) {
-      return refreshCaptainPointsOnly({
+      return refreshPickDerivedFields({
         seasonId: season.id,
         eventNumber,
         eventRowId: eventRow.id,
@@ -167,15 +194,26 @@ export async function enrichLeagueIntel(
     });
     if (!entryRow) continue;
 
+    const resultRow = await db.query.entryEventResults.findFirst({
+      where: and(
+        eq(entryEventResults.seasonEntryId, entryRow.id),
+        eq(entryEventResults.eventId, eventRow.id),
+      ),
+    });
+
     const starterIds = picksResponse.picks
       .filter((p) => p.position <= 11)
       .map((p) => p.element);
     entrySquads.push({ entryId: entryRow.id, starterIds });
 
-    const { name, points } = captainFromPicks(picksResponse.picks, playerNames);
+    const { captainName, captainPoints, benchBoostPoints } = pickDerivedFields(
+      picksResponse,
+      playerNames,
+      resultRow?.chip,
+    );
     await db
       .update(entryEventResults)
-      .set({ captainName: name, captainPoints: points })
+      .set({ captainName, captainPoints, benchBoostPoints })
       .where(
         and(
           eq(entryEventResults.seasonEntryId, entryRow.id),
