@@ -27,6 +27,7 @@ export const resultPayloadSchema = z
     transferCost: z.number().int().nonnegative().default(0),
     totalPoints: z.number().int().default(0),
     benchPoints: z.number().int().nonnegative().default(0),
+    benchBoostPoints: z.number().int().nonnegative().nullable().optional(),
     chip: z.string().nullable().optional(),
     captainName: z.string().nullable().optional(),
     captainPoints: z.number().int().nullable().optional(),
