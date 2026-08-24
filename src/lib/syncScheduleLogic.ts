@@ -101,10 +101,22 @@ export function fixtureEstimatedEnd(fixture: FplFixture): Date | null {
   return new Date(kickoff.getTime() + mins * 60_000);
 }
 
+export function isFixtureInPlay(fixture: FplFixture, now: Date): boolean {
+  if (!fixture.started || fixture.finished) return false;
+  const kickoff = fixtureKickoff(fixture);
+  const estimatedEnd = fixtureEstimatedEnd(fixture);
+  if (!kickoff || !estimatedEnd) return false;
+  return (
+    now.getTime() >= kickoff.getTime() &&
+    now.getTime() <= estimatedEnd.getTime() + POST_GAME_BUFFER_MS
+  );
+}
+
 export function hasLiveFixtures(
-  fixtures: ReadonlyArray<Pick<FplFixture, "started" | "finished">>,
+  fixtures: ReadonlyArray<FplFixture>,
+  now = new Date(),
 ): boolean {
-  return fixtures.some((f) => f.started && !f.finished);
+  return fixtures.some((fixture) => isFixtureInPlay(fixture, now));
 }
 
 /** Finished within the post-game buffer (bonus / late stat tweaks). */
@@ -114,7 +126,16 @@ export function hasRecentlyFinishedFixtures(
   bufferMs = POST_GAME_BUFFER_MS,
 ): boolean {
   return fixtures.some((fixture) => {
-    if (!fixture.finished) return false;
+    if (fixture.finished) {
+      const ended = fixtureEstimatedEnd(fixture);
+      if (!ended) return false;
+      const elapsed = now.getTime() - ended.getTime();
+      return elapsed >= 0 && elapsed <= bufferMs;
+    }
+
+    // FPL sometimes leaves finished=false after full time; treat as recently done
+    // only while we are still inside the post-whistle buffer.
+    if (!fixture.started || isFixtureInPlay(fixture, now)) return false;
     const ended = fixtureEstimatedEnd(fixture);
     if (!ended) return false;
     const elapsed = now.getTime() - ended.getTime();
@@ -267,8 +288,8 @@ export function resolveScheduleFromFpl(input: ResolveScheduleInput): SyncSchedul
   const parts = getLondonParts(now);
 
   if (isMatchInterval(parts)) {
-    if (hasLiveFixtures(fixtures)) {
-      const liveCount = fixtures.filter((f) => f.started && !f.finished).length;
+    if (hasLiveFixtures(fixtures, now)) {
+      const liveCount = fixtures.filter((f) => isFixtureInPlay(f, now)).length;
       return {
         run: true,
         tier: "match",
@@ -286,7 +307,7 @@ export function resolveScheduleFromFpl(input: ResolveScheduleInput): SyncSchedul
         reason: "fixture just finished — 15-minute post-whistle refresh",
       };
     }
-  } else if (hasLiveFixtures(fixtures) || hasRecentlyFinishedFixtures(fixtures, now)) {
+  } else if (hasLiveFixtures(fixtures, now) || hasRecentlyFinishedFixtures(fixtures, now)) {
     return {
       run: false,
       tier: "skip",

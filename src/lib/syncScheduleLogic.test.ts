@@ -81,6 +81,37 @@ describe("resolveScheduleFromFpl", () => {
     expect(decision.tier).toBe("skip");
   });
 
+  it("skips repeated live sync when FPL leaves finished=false after full time", () => {
+    const now = londonLocalToUtc(2026, 8, 24, 10, 30);
+    const fixtures: FplFixture[] = [
+      fixture({
+        id: 1,
+        kickoff_time: "2026-08-21T19:00:00Z",
+        started: true,
+        finished: false,
+        minutes: 90,
+      }),
+    ];
+
+    const decision = resolveScheduleFromFpl({
+      now,
+      fixtures,
+      events: [event({ id: 1, deadline_time: "2026-08-21T17:30:00Z" })],
+      completedScheduleKeys: new Set([
+        "post-deadline-gw1",
+        "end-of-day-2026-08-21",
+        "end-of-day-2026-08-22",
+        "end-of-day-2026-08-23",
+        "morning-after-2026-08-22",
+        "morning-after-2026-08-23",
+        "morning-after-2026-08-24",
+      ]),
+    });
+
+    expect(decision.run).toBe(false);
+    expect(decision.reason).toContain("no live fixtures");
+  });
+
   it("syncs every 15 minutes while a fixture is live", () => {
     const now = londonLocalToUtc(2026, 8, 22, 15, 0);
     const fixtures: FplFixture[] = [
@@ -272,8 +303,41 @@ describe("isMatchInterval", () => {
 });
 
 describe("hasLiveFixtures", () => {
-  it("detects in-play fixtures", () => {
-    expect(hasLiveFixtures([{ started: true, finished: false }])).toBe(true);
+  it("detects in-play fixtures within kickoff window", () => {
+    const kickoff = new Date("2026-08-22T14:00:00Z");
+    const now = new Date(kickoff.getTime() + 55 * 60_000);
+    expect(
+      hasLiveFixtures(
+        [
+          fixture({
+            id: 1,
+            kickoff_time: kickoff.toISOString(),
+            started: true,
+            finished: false,
+            minutes: 55,
+          }),
+        ],
+        now,
+      ),
+    ).toBe(true);
+  });
+
+  it("ignores stale FPL flags after estimated full time", () => {
+    const now = new Date("2026-08-24T09:30:00Z");
+    expect(
+      hasLiveFixtures(
+        [
+          fixture({
+            id: 1,
+            kickoff_time: "2026-08-21T19:00:00Z",
+            started: true,
+            finished: false,
+            minutes: 90,
+          }),
+        ],
+        now,
+      ),
+    ).toBe(false);
   });
 });
 

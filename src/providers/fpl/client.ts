@@ -128,8 +128,22 @@ export function livePointsByElement(live: FplLiveEvent): Map<number, number> {
 }
 
 /** True when at least one PL fixture is in play (kick-off to full time). */
-export function hasLiveFixtures(fixtures: ReadonlyArray<Pick<FplFixture, "started" | "finished">>): boolean {
-  return fixtures.some((fixture) => fixture.started && !fixture.finished);
+export function hasLiveFixtures(
+  fixtures: ReadonlyArray<
+    Pick<FplFixture, "started" | "finished" | "kickoff_time" | "minutes">
+  >,
+  now = new Date(),
+): boolean {
+  return fixtures.some((fixture) => {
+    if (!fixture.started || fixture.finished) return false;
+    if (!fixture.kickoff_time) return false;
+    const kickoff = new Date(fixture.kickoff_time);
+    if (Number.isNaN(kickoff.getTime())) return false;
+    const mins = fixture.minutes > 0 ? fixture.minutes : 105;
+    const estimatedEnd = kickoff.getTime() + mins * 60_000;
+    const bufferMs = 15 * 60_000;
+    return now.getTime() >= kickoff.getTime() && now.getTime() <= estimatedEnd + bufferMs;
+  });
 }
 
 export async function fetchLeagueStandingsPage(
