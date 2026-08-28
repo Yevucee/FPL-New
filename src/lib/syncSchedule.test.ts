@@ -51,6 +51,10 @@ describe("resolveAutomatedSyncSchedule", () => {
       {
         id: 1,
         event: 1,
+        team_h: 1,
+        team_a: 2,
+        team_h_difficulty: 3,
+        team_a_difficulty: 3,
         kickoff_time: "2026-08-22T11:30:00Z",
         started: false,
         finished: false,
@@ -70,6 +74,7 @@ describe("resolveAutomatedSyncSchedule", () => {
         },
       ],
       elements: [],
+      teams: [],
     });
 
     const sat0900 = londonLocalToUtc(2026, 8, 22, 9, 0);
@@ -82,6 +87,10 @@ describe("resolveAutomatedSyncSchedule", () => {
       {
         id: 1,
         event: 1,
+        team_h: 1,
+        team_a: 2,
+        team_h_difficulty: 3,
+        team_a_difficulty: 3,
         kickoff_time: "2026-08-22T14:00:00Z",
         started: true,
         finished: false,
@@ -101,6 +110,7 @@ describe("resolveAutomatedSyncSchedule", () => {
         },
       ],
       elements: [],
+      teams: [],
     });
 
     const sat1500 = londonLocalToUtc(2026, 8, 22, 15, 0);

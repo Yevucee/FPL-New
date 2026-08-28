@@ -10,14 +10,40 @@ export interface FplBootstrapEvent {
   is_next: boolean;
 }
 
+export interface FplBootstrapElement {
+  id: number;
+  web_name: string;
+  first_name: string;
+  second_name: string;
+  element_type: number;
+  team: number;
+  now_cost: number;
+  form: string;
+  total_points: number;
+  selected_by_percent: string;
+  status: string;
+  chance_of_playing_next_round: number | null;
+  minutes: number;
+}
+
+export interface FplBootstrapTeam {
+  id: number;
+  short_name: string;
+}
+
 export interface FplBootstrap {
   events: FplBootstrapEvent[];
-  elements: Array<{ id: number; web_name: string }>;
+  elements: FplBootstrapElement[];
+  teams: FplBootstrapTeam[];
 }
 
 export interface FplFixture {
   id: number;
   event: number;
+  team_h: number;
+  team_a: number;
+  team_h_difficulty: number | null;
+  team_a_difficulty: number | null;
   kickoff_time: string | null;
   started: boolean;
   finished: boolean;
