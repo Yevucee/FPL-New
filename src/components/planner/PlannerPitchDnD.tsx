@@ -8,7 +8,7 @@ import { formationLabel } from "@/planner/squadValidation";
 
 interface PlannerPitchDnDProps {
   squad: EnrichedSquadPlayer[];
-  highlightEvent?: number;
+  focusEvent: number;
   formationError?: string | null;
 }
 
@@ -17,12 +17,12 @@ const ROWS: PlannerPosition[] = ["GK", "DEF", "MID", "FWD"];
 function PitchSlot({
   slot,
   player,
-  highlightEvent,
+  focusEvent,
   compact,
 }: {
   slot: number;
   player: EnrichedSquadPlayer | null;
-  highlightEvent?: number;
+  focusEvent: number;
   compact?: boolean;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: `slot-${slot}` });
@@ -30,11 +30,11 @@ function PitchSlot({
   return (
     <div
       ref={setNodeRef}
-      className={`${compact ? "w-[4.5rem]" : "w-24"} min-h-[5.5rem] rounded-lg border border-dashed transition-colors ${
-        isOver ? "border-swiss-500 bg-swiss-50/80" : "border-transparent"
+      className={`${compact ? "w-[4.75rem]" : "w-[5.5rem]"} min-h-[7rem] rounded-lg transition-colors ${
+        isOver ? "bg-white/20 ring-2 ring-white/80" : ""
       }`}
     >
-      {player ? <PlayerCard player={player} highlightEvent={highlightEvent} compact={compact} /> : null}
+      {player ? <PlayerCard player={player} focusEvent={focusEvent} compact={compact} /> : null}
     </div>
   );
 }
@@ -45,7 +45,7 @@ function startersByPosition(starters: EnrichedSquadPlayer[], position: PlannerPo
     .sort((a, b) => a.slot - b.slot);
 }
 
-export function PlannerPitchDnD({ squad, highlightEvent, formationError }: PlannerPitchDnDProps) {
+export function PlannerPitchDnD({ squad, focusEvent, formationError }: PlannerPitchDnDProps) {
   const starters = squad.filter((player) => player.isStarter);
   const bench = squad.filter((player) => !player.isStarter).sort((a, b) => a.slot - b.slot);
   const starterBySlot = new Map(starters.map((player) => [player.slot, player]));
@@ -53,11 +53,11 @@ export function PlannerPitchDnD({ squad, highlightEvent, formationError }: Plann
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between gap-2 text-xs text-slate-600">
+      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
         <span>
-          Formation: <strong className="text-slate-900">{formationLabel(starters)}</strong>
+          Formation <strong className="text-slate-900">{formationLabel(starters)}</strong>
         </span>
-        <span className="text-slate-400">Drag players to swap positions or move to bench</span>
+        <span className="text-slate-400">Drag to swap or bench</span>
       </div>
 
       {formationError && (
@@ -66,19 +66,19 @@ export function PlannerPitchDnD({ squad, highlightEvent, formationError }: Plann
         </p>
       )}
 
-      <div className="rounded-xl border border-pitch-300/60 bg-gradient-to-b from-pitch-100/80 to-pitch-200/40 p-4">
-        <div className="mx-auto max-w-2xl space-y-3">
+      <div className="overflow-hidden rounded-xl border border-pitch-400/40 bg-gradient-to-b from-pitch-500 to-pitch-600 p-4 shadow-inner">
+        <div className="mx-auto max-w-3xl space-y-4">
           {ROWS.map((position) => {
             const rowPlayers = startersByPosition(starters, position);
             if (rowPlayers.length === 0) return null;
             return (
-              <div key={position} className="flex flex-wrap justify-center gap-2">
+              <div key={position} className="flex flex-wrap justify-center gap-2.5">
                 {rowPlayers.map((player) => (
                   <PitchSlot
                     key={player.elementId}
                     slot={player.slot}
                     player={starterBySlot.get(player.slot) ?? player}
-                    highlightEvent={highlightEvent}
+                    focusEvent={focusEvent}
                   />
                 ))}
               </div>
@@ -86,9 +86,9 @@ export function PlannerPitchDnD({ squad, highlightEvent, formationError }: Plann
           })}
         </div>
 
-        <div className="mt-4 border-t border-pitch-300/40 pt-3">
-          <p className="mb-2 text-center text-xs font-semibold uppercase tracking-wide text-pitch-800">
-            Bench
+        <div className="mt-5 border-t border-white/20 pt-4">
+          <p className="mb-2 text-center text-[10px] font-bold uppercase tracking-widest text-white/80">
+            Substitutes
           </p>
           <div className="flex flex-wrap justify-center gap-2">
             {[12, 13, 14, 15].map((slot) => (
@@ -96,7 +96,7 @@ export function PlannerPitchDnD({ squad, highlightEvent, formationError }: Plann
                 key={slot}
                 slot={slot}
                 player={benchBySlot.get(slot) ?? null}
-                highlightEvent={highlightEvent}
+                focusEvent={focusEvent}
                 compact
               />
             ))}

@@ -12,6 +12,7 @@ export interface FplBootstrapEvent {
 
 export interface FplBootstrapElement {
   id: number;
+  code: number;
   web_name: string;
   first_name: string;
   second_name: string;

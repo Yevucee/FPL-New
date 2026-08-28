@@ -13,9 +13,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { GameweekFixturesPanel } from "@/components/planner/GameweekFixturesPanel";
 import { PlannerPitchDnD } from "@/components/planner/PlannerPitchDnD";
 import { PlayerCard } from "@/components/planner/PlayerCard";
-import { Card } from "@/components/ui/Card";
 import { draftStorageKey, enrichSquadPlayers, swapSquadSlots } from "@/planner/enrichSquad";
 import { isValidStartingFormation } from "@/planner/squadValidation";
 import type { EnrichedSquadPlayer, PlannerElement, PlannerFixture, SquadPlayer } from "@/planner/types";
@@ -100,12 +100,10 @@ export function MyTeamPlanner({ payload, catalogJson, fixturesByTeamJson }: MyTe
       const swapped = swapSquadSlots(basePlayers, draggedElementId, targetSlot);
       if (!swapped) return;
 
-      const catalogElements = catalog;
-
       const starters = swapped
         .filter((player) => player.isStarter)
         .map((player) => {
-          const element = catalogElements.get(player.elementId);
+          const element = catalog.get(player.elementId);
           return element ? { element, ...player } : null;
         })
         .filter((player): player is NonNullable<typeof player> => player !== null);
@@ -118,7 +116,7 @@ export function MyTeamPlanner({ payload, catalogJson, fixturesByTeamJson }: MyTe
       setFormationError(null);
       const enriched = enrichSquadPlayers({
         players: swapped,
-        catalog: catalogElements,
+        catalog,
         fixturesByTeam,
         fromEvent: payload.selectedEvent,
         fixtureCount: 5,
@@ -152,8 +150,17 @@ export function MyTeamPlanner({ payload, catalogJson, fixturesByTeamJson }: MyTe
     applySwap(draggedElementId, targetSlot);
   }
 
+  const prevGw =
+    payload.availableEvents[
+      payload.availableEvents.indexOf(payload.selectedEvent) - 1
+    ] ?? null;
+  const nextGw =
+    payload.availableEvents[
+      payload.availableEvents.indexOf(payload.selectedEvent) + 1
+    ] ?? null;
+
   return (
-    <section className="space-y-4">
+    <section className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h2 className="text-lg font-bold tracking-tight text-slate-900">My team</h2>
@@ -167,52 +174,55 @@ export function MyTeamPlanner({ payload, catalogJson, fixturesByTeamJson }: MyTe
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          {payload.availableEvents.map((eventNumber) => {
-            const isActive = eventNumber === payload.selectedEvent;
-            const isFuture =
-              payload.lockedEvent !== null && eventNumber > payload.lockedEvent;
-            return (
-              <Link
-                key={eventNumber}
-                href={`/planner?gw=${eventNumber}`}
-                className={`rounded-full px-3 py-1.5 text-sm font-semibold transition-colors ${
-                  isActive
-                    ? "bg-swiss-600 text-white shadow-sm"
-                    : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"
-                }`}
-              >
-                GW{eventNumber}
-                {isFuture && !isActive ? " +" : ""}
-              </Link>
-            );
-          })}
+        <div className="flex items-center gap-1 rounded-full bg-slate-100 p-1">
+          {prevGw ? (
+            <Link
+              href={`/planner?gw=${prevGw}`}
+              className="rounded-full px-3 py-1.5 text-sm font-semibold text-slate-600 hover:bg-white hover:text-slate-900"
+              aria-label={`Previous gameweek GW${prevGw}`}
+            >
+              ←
+            </Link>
+          ) : (
+            <span className="px-3 py-1.5 text-sm text-slate-300">←</span>
+          )}
+          <span className="min-w-[5rem] px-2 text-center text-sm font-bold text-slate-900">
+            GW{payload.selectedEvent}
+          </span>
+          {nextGw ? (
+            <Link
+              href={`/planner?gw=${nextGw}`}
+              className="rounded-full px-3 py-1.5 text-sm font-semibold text-slate-600 hover:bg-white hover:text-slate-900"
+              aria-label={`Next gameweek GW${nextGw}`}
+            >
+              →
+            </Link>
+          ) : (
+            <span className="px-3 py-1.5 text-sm text-slate-300">→</span>
+          )}
         </div>
       </div>
-
-      <Card padding="sm" className="bg-slate-50/80 text-xs text-slate-600">
-        Next 5 fixtures shown per player (FDR colour).{" "}
-        {payload.isImportedPick
-          ? `Lineup imported from FPL for GW${payload.selectedEvent}.`
-          : isFutureGameweek
-            ? "Future gameweek — drag to plan your XI and bench (saved in this browser)."
-            : "Showing your latest locked squad."}
-      </Card>
 
       <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         <PlannerPitchDnD
           squad={squad}
-          highlightEvent={payload.selectedEvent}
+          focusEvent={payload.selectedEvent}
           formationError={formationError}
         />
         <DragOverlay>
           {activePlayer ? (
-            <div className="w-24 opacity-90">
-              <PlayerCard player={activePlayer} highlightEvent={payload.selectedEvent} />
+            <div className="w-[5.5rem] opacity-95">
+              <PlayerCard player={activePlayer} focusEvent={payload.selectedEvent} />
             </div>
           ) : null}
         </DragOverlay>
       </DndContext>
+
+      <GameweekFixturesPanel
+        eventNumber={payload.selectedEvent}
+        deadlineLabel={payload.deadlineLabel}
+        fixtures={payload.gameweekFixtures}
+      />
 
       {isFutureGameweek && (
         <div className="flex justify-end">
