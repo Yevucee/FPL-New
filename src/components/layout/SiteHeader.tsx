@@ -8,6 +8,7 @@ import { leagueConfig } from "@/lib/leagueConfig";
 
 const navItems = [
   { href: "/league", label: "Standings" },
+  { href: "/planner", label: "Planner" },
   { href: "/league/rivalry", label: "Rivalry" },
   { href: "/history", label: "History" },
 ] as const;
@@ -18,6 +19,9 @@ function isActive(pathname: string, href: string): boolean {
   }
   if (href === "/league/rivalry") {
     return pathname.startsWith("/league/rivalry");
+  }
+  if (href === "/planner") {
+    return pathname.startsWith("/planner");
   }
   return pathname.startsWith(href);
 }
