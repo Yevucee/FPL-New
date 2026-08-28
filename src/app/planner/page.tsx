@@ -1,7 +1,6 @@
 import { PlannerDashboard } from "@/components/planner/PlannerDashboard";
 import { MyTeamPlanner } from "@/components/planner/MyTeamPlanner";
 import { Card } from "@/components/ui/Card";
-import { plannerEntryConfigured } from "@/lib/plannerConfig";
 import { getPlannerOverview } from "@/server/plannerData";
 import { getPlannerTeamPayload } from "@/server/plannerTeamData";
 
@@ -17,7 +16,7 @@ export default async function PlannerPage({ searchParams }: PlannerPageProps) {
 
   const [overview, teamPayload] = await Promise.all([
     getPlannerOverview(),
-    plannerEntryConfigured() ? getPlannerTeamPayload(selectedGw) : Promise.resolve(null),
+    getPlannerTeamPayload(selectedGw),
   ]);
 
   return (
@@ -29,14 +28,7 @@ export default async function PlannerPage({ searchParams }: PlannerPageProps) {
         </p>
       </div>
 
-      {!plannerEntryConfigured() ? (
-        <Card>
-          <p className="text-sm text-slate-600">
-            Set <code className="rounded bg-slate-100 px-1">PLANNER_FPL_ENTRY_ID</code> on Railway
-            to show your squad here (your FPL entry ID from the site URL).
-          </p>
-        </Card>
-      ) : teamPayload && teamPayload.squad.length > 0 ? (
+      {teamPayload && teamPayload.squad.length > 0 ? (
         <MyTeamPlanner
           payload={teamPayload}
           catalogJson={teamPayload.catalogJson}
