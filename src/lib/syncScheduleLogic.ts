@@ -326,3 +326,14 @@ export function resolveScheduleFromFpl(input: ResolveScheduleInput): SyncSchedul
     }
   );
 }
+
+/** Post-deadline one-offs need enrich (captain / most-owned) before we mark them done. */
+export function scheduleKeyComplete(args: {
+  scheduleKey: string;
+  importOk: boolean;
+  enrichOk: boolean;
+}): boolean {
+  if (!args.importOk) return false;
+  if (args.scheduleKey.startsWith("post-deadline")) return args.enrichOk;
+  return true;
+}

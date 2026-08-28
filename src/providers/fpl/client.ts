@@ -295,14 +295,22 @@ export async function fetchEntryProfile(entryId: string): Promise<{
 export async function fetchEntryPicks(
   entryId: string,
   eventNumber: number,
+  attempt = 1,
 ): Promise<FplPicksResponse | null> {
   const res = await fetch(
     `${FPL_BASE}/entry/${entryId}/event/${eventNumber}/picks/`,
     { headers: { "User-Agent": "swiss-expert-league-archive/0.1" } },
   );
   if (res.status === 404) return null;
+  if ((res.status === 503 || res.status === 429) && attempt < 6) {
+    await sleep(1000 * 2 ** attempt);
+    return fetchEntryPicks(entryId, eventNumber, attempt + 1);
+  }
   if (!res.ok) {
-    throw new Error(`FPL API entry/${entryId}/event/${eventNumber}/picks returned ${res.status}`);
+    console.warn(
+      `[fpl] entry/${entryId}/event/${eventNumber}/picks returned ${res.status} — skipping`,
+    );
+    return null;
   }
   return res.json() as Promise<FplPicksResponse>;
 }

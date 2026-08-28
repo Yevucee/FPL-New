@@ -15,6 +15,7 @@ import {
   POST_GAME_BUFFER_MS,
   END_OF_DAY_DELAY_MS,
   resolveScheduleFromFpl,
+  scheduleKeyComplete,
 } from "./syncScheduleLogic";
 
 /** Build a UTC Date for a UK local wall time (handles BST in summer). */
@@ -353,5 +354,27 @@ describe("postDeadlineSchedule", () => {
       new Set(["post-deadline-gw1"]),
     );
     expect(decision?.scheduleKey).toBe("post-deadline-gw2");
+  });
+});
+
+describe("scheduleKeyComplete", () => {
+  it("requires enrich for post-deadline one-offs", () => {
+    expect(
+      scheduleKeyComplete({
+        scheduleKey: "post-deadline-gw2",
+        importOk: true,
+        enrichOk: false,
+      }),
+    ).toBe(false);
+  });
+
+  it("marks end-of-day complete when import succeeds", () => {
+    expect(
+      scheduleKeyComplete({
+        scheduleKey: "end-of-day-2026-08-22",
+        importOk: true,
+        enrichOk: false,
+      }),
+    ).toBe(true);
   });
 });

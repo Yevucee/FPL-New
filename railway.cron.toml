@@ -5,6 +5,7 @@ builder = "RAILPACK"
 buildCommand = "npm ci"
 
 [deploy]
+preDeployCommand = ["npm run db:migrate"]
 startCommand = "npm run job:automated-sync"
 # Every 15 min; job skips outside PL match windows + 4× daily maintenance.
 cronSchedule = "*/15 * * * *"
