@@ -59,6 +59,7 @@ Force a full run locally: `FPL_SYNC_FORCE=1 npm run job:automated-sync`
 | `FANTASY_PROVIDER_MODE` | `manual` |
 | `APP_TIMEZONE` | `Europe/Zurich` |
 | `SCORING_TIMEZONE` | `Europe/London` |
+| `PLANNER_FPL_ENTRY_ID` | Your FPL entry ID — personal squad planner on `/planner` (Samuel: `3386632`) |
 | `PORT` | `3000` |
 
 Generate a public domain under **Networking**.

@@ -36,6 +36,10 @@ function londonLocalToUtc(
 function fixture(partial: Partial<FplFixture> & Pick<FplFixture, "id">): FplFixture {
   return {
     event: 1,
+    team_h: 1,
+    team_a: 2,
+    team_h_difficulty: 3,
+    team_a_difficulty: 3,
     kickoff_time: "2026-08-22T14:00:00Z",
     started: false,
     finished: false,
