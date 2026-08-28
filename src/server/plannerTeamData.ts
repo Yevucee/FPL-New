@@ -1,4 +1,4 @@
-import { plannerEntryConfigured, plannerEntryId } from "@/lib/plannerConfig";
+import { plannerEntryId } from "@/lib/plannerConfig";
 import { buildElementCatalog, buildFixturesByTeam } from "@/planner/elementCatalog";
 import { enrichSquadPlayers } from "@/planner/enrichSquad";
 import { picksToSquadPlayers, pointsByElementFromPicks } from "@/planner/squadImport";
@@ -30,9 +30,7 @@ const FUTURE_GW_LOOKAHEAD = 5;
 export async function getPlannerTeamPayload(
   selectedEvent?: number,
 ): Promise<PlannerTeamPayload | null> {
-  if (!plannerEntryConfigured()) return null;
-
-  const entryId = plannerEntryId()!;
+  const entryId = plannerEntryId();
   const [bootstrap, fixtures, profile] = await Promise.all([
     fetchBootstrap(),
     fetchFixtures(),
