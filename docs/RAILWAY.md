@@ -71,7 +71,7 @@ Generate a public domain under **Networking**.
 3. **Settings** → **Config file path** → `railway.cron.toml`
 4. Copy the **same variables** as Web (especially `DATABASE_URL`, `LEAGUE_PROVIDER_ID`)
 
-Cron schedule: `*/15 * * * *` (every 15 min, gated inside the job). Tune in Railway if needed.
+Cron runs `db:migrate` before each deploy (same as Web). Cron schedule: `*/15 * * * *` (every 15 min, gated inside the job). Tune in Railway if needed.
 
 ### 5. When the league renews
 
@@ -93,6 +93,7 @@ Within one maintenance or match-window sync:
 |-------|-----|
 | Pre-season, 0 managers | League ID wrong or league not renewed yet — check sync-cron logs |
 | Stale data | Check sync-cron ran successfully; FPL may not have updated yet |
+| sync-cron "Deployment crashed" | Usually an unhandled error during enrich/history at GW deadline — check deploy logs; cron now retries incomplete one-offs and exits cleanly on partial failures |
 | No history | Wait for first automated sync after `LEAGUE_PROVIDER_ID` is set |
 | `/ready` 503 | Postgres not linked or migrations failed |
 

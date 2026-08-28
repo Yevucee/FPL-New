@@ -25,3 +25,15 @@ export async function loadCompletedScheduleKeys(): Promise<Set<string>> {
 export function scheduleScopeForKey(key: string): string {
   return `${SCHEDULE_SCOPE_PREFIX}${key}`;
 }
+
+/** Record a one-off schedule sync only after the full pipeline succeeds. */
+export async function recordCompletedScheduleKey(key: string): Promise<void> {
+  await db.insert(syncRuns).values({
+    provider: "fpl-public",
+    scope: scheduleScopeForKey(key),
+    status: "succeeded",
+    finishedAt: new Date(),
+    correlationId: crypto.randomUUID(),
+    codeVersion: process.env.GIT_SHA ?? "dev",
+  });
+}

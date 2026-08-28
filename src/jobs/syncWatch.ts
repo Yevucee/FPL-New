@@ -27,8 +27,8 @@ async function syncWatchLoop(): Promise<void> {
           const slot = `${parts.dayOfWeek}-${parts.hour}-${parts.minute}`;
           if (slot !== lastLiveSlot) {
             console.log(`[sync-watch] live sync — ${schedule.reason}`);
-            const synced = await runAutomatedSync({ closePool: false });
-            if (synced) lastLiveSlot = slot;
+            const result = await runAutomatedSync({ closePool: false });
+            if (result.ok) lastLiveSlot = slot;
           }
         }
       }
@@ -52,8 +52,8 @@ export function startSyncWatch(): void {
     const schedule = await resolveAutomatedSyncSchedule(new Date());
     if (schedule.run) {
       try {
-        const synced = await runAutomatedSync({ closePool: false });
-        if (synced) {
+        const result = await runAutomatedSync({ closePool: false });
+        if (result.ok) {
           console.log("[sync-watch] initial sync complete");
         }
       } catch (err) {

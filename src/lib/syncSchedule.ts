@@ -13,7 +13,7 @@ import {
 } from "@/providers/fpl/client";
 
 export type { LondonDateTimeParts, SyncScheduleDecision, SyncScheduleTier } from "@/lib/syncScheduleLogic";
-export { getLondonParts, isMatchInterval } from "@/lib/syncScheduleLogic";
+export { getLondonParts, isMatchInterval, scheduleKeyComplete } from "@/lib/syncScheduleLogic";
 
 /** @deprecated Fixture-driven schedule uses resolveAutomatedSyncSchedule. */
 export function shouldRunAutomatedSync(
