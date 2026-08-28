@@ -97,6 +97,14 @@ export interface FplEntryHistory {
   chips: Array<{ name: string; event: number }>;
 }
 
+export interface FplTransfer {
+  element_in: number;
+  element_out: number;
+  entry: number;
+  event: number;
+  time: string;
+}
+
 async function fplGet<T>(path: string, attempt = 1): Promise<T> {
   const res = await fetch(`${FPL_BASE}${path}`, {
     headers: { "User-Agent": "swiss-expert-league-archive/0.1" },
@@ -275,6 +283,10 @@ export async function fetchAllLeagueStandings(leagueId: string): Promise<{
 
 export async function fetchEntryHistory(entryId: string): Promise<FplEntryHistory> {
   return fplGet<FplEntryHistory>(`/entry/${entryId}/history/`);
+}
+
+export async function fetchEntryTransfers(entryId: string): Promise<FplTransfer[]> {
+  return fplGet<FplTransfer[]>(`/entry/${entryId}/transfers/`);
 }
 
 export async function fetchEntryProfile(entryId: string): Promise<{

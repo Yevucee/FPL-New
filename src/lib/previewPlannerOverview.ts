@@ -88,5 +88,45 @@ export function previewPlannerOverview(): PlannerOverview {
       captainName: ["Haaland", "Salah", "Palmer", "Son", "Saka", "Bruno F.", "Watkins"][index] ?? null,
       captainPoints: [24, 18, 14, 12, 8, 6, 2][index] ?? null,
     })),
+    gwTransfers: [
+      {
+        managerName: "Roland Christandl",
+        teamName: "Anti Haaland Brigade",
+        transferCount: 1,
+        hitPoints: 0,
+        moves: [{ playerOut: "Anderson", playerIn: "M.Sangaré" }],
+      },
+      {
+        managerName: "Marco Löffel Diaz",
+        teamName: "Real Rapperswil",
+        transferCount: 2,
+        hitPoints: 4,
+        moves: [
+          { playerOut: "Son", playerIn: "Gordon" },
+          { playerOut: "Murillo", playerIn: "Timber" },
+        ],
+      },
+      {
+        managerName: "Samuel Polley",
+        teamName: "Yevu Athletic",
+        transferCount: 1,
+        hitPoints: 0,
+        moves: [{ playerOut: "Watkins", playerIn: "Wissa" }],
+      },
+      ...managers
+        .filter(
+          (manager) =>
+            !["Roland Christandl", "Marco Löffel Diaz", "Samuel Polley"].includes(
+              manager.name,
+            ),
+        )
+        .map((manager) => ({
+          managerName: manager.name,
+          teamName: manager.team,
+          transferCount: 0,
+          hitPoints: 0,
+          moves: [],
+        })),
+    ],
   };
 }

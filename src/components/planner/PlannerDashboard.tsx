@@ -154,6 +154,57 @@ export function PlannerDashboard({ overview }: PlannerDashboardProps) {
         </section>
       )}
 
+      {overview.gwTransfers.length > 0 && (
+        <section>
+          <h2 className="mb-3 text-lg font-bold tracking-tight text-slate-900">
+            Transfers · GW{overview.eventNumber}
+          </h2>
+          <div className="overflow-x-auto rounded-xl border border-slate-200/80 bg-white shadow-card">
+            <table className="w-full min-w-[560px] text-left text-sm">
+              <thead className="bg-slate-50/90 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                <tr>
+                  <th className="px-3 py-3">Manager</th>
+                  <th className="px-3 py-3">Moves</th>
+                  <th className="px-3 py-3 text-right">Hit</th>
+                </tr>
+              </thead>
+              <tbody>
+                {overview.gwTransfers.map((row) => (
+                  <tr key={row.managerName} className="border-t border-slate-100">
+                    <td className="px-3 py-2.5 align-top">
+                      <div className="font-medium text-slate-900">{row.managerName}</div>
+                      <div className="text-xs text-slate-500">{row.teamName}</div>
+                    </td>
+                    <td className="px-3 py-2.5 align-top">
+                      {row.moves.length === 0 ? (
+                        <span className="text-slate-400">No transfers</span>
+                      ) : (
+                        <ul className="space-y-1">
+                          {row.moves.map((move, index) => (
+                            <li key={`${move.playerOut}-${move.playerIn}-${index}`}>
+                              <span className="text-slate-500">{move.playerOut}</span>
+                              <span className="mx-1.5 text-slate-300">→</span>
+                              <span className="font-medium text-slate-800">{move.playerIn}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </td>
+                    <td className="px-3 py-2.5 text-right align-top font-bold tabular-nums">
+                      {row.hitPoints > 0 ? (
+                        <span className="text-red-600">−{row.hitPoints}</span>
+                      ) : (
+                        <span className="text-slate-400">—</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
       {overview.captainPicks.length > 0 && (
         <section>
           <h2 className="mb-3 text-lg font-bold tracking-tight text-slate-900">

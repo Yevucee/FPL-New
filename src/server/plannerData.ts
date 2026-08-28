@@ -17,6 +17,8 @@ import {
 } from "@/lib/mostOwnedLimits";
 import { formatChipName, SEASON_CHIP_TYPES, type SeasonChipType } from "@/lib/chipLabels";
 import { loadMostOwnedIntel } from "@/server/eventIntelData";
+import { fetchBootstrap } from "@/providers/fpl/client";
+import { loadGwTransfers, type GwTransferRow } from "@/providers/fpl/gwTransfers";
 import { filterDifferentials } from "@/providers/fpl/mostOwned";
 import type { MostOwnedPlayer } from "@/providers/fpl/mostOwned";
 
@@ -51,6 +53,18 @@ export interface PlannerOverview {
   chipsPlayed: ChipPlayRow[];
   chipStatus: ChipStatusRow[];
   captainPicks: CaptainPickRow[];
+  gwTransfers: GwTransferRow[];
+}
+
+function latestLockedEvent(
+  eventRows: ReadonlyArray<{ eventNumber: number; deadline: Date | null }>,
+  now = Date.now(),
+): number | null {
+  const locked = eventRows.filter(
+    (event) => event.deadline && event.deadline.getTime() <= now,
+  );
+  if (locked.length === 0) return null;
+  return Math.max(...locked.map((event) => event.eventNumber));
 }
 
 export async function getPlannerOverview(): Promise<PlannerOverview | null> {
@@ -67,6 +81,7 @@ export async function getPlannerOverview(): Promise<PlannerOverview | null> {
   const entries = await db
     .select({
       entryId: seasonEntries.id,
+      providerEntryId: seasonEntries.providerEntryId,
       managerName: managers.displayName,
       teamName: seasonEntries.teamName,
     })
@@ -86,6 +101,7 @@ export async function getPlannerOverview(): Promise<PlannerOverview | null> {
       chipsPlayed: [],
       chipStatus: [],
       captainPicks: [],
+      gwTransfers: [],
     };
   }
 
@@ -96,14 +112,17 @@ export async function getPlannerOverview(): Promise<PlannerOverview | null> {
     .orderBy(events.eventNumber);
 
   const finishedEvents = eventRows.filter((ev) => ev.finished && ev.checked);
-  const latestEvent =
+  const latestFinishedEvent =
     finishedEvents.length > 0
       ? Math.max(...finishedEvents.map((ev) => ev.eventNumber))
       : null;
+  const lockedEvent = latestLockedEvent(eventRows);
 
   let mostOwned: MostOwnedPlayer[] = [];
   let differentials: MostOwnedPlayer[] = [];
-  const fullIntel = await loadMostOwnedIntel(season.id, { preferredEvent: latestEvent });
+  const fullIntel = await loadMostOwnedIntel(season.id, {
+    preferredEvent: lockedEvent ?? latestFinishedEvent,
+  });
   if (fullIntel) {
     mostOwned = fullIntel.players.slice(0, MOST_OWNED_PLANNER_LIMIT);
     differentials = filterDifferentials(
@@ -121,6 +140,7 @@ export async function getPlannerOverview(): Promise<PlannerOverview | null> {
       chip: entryEventResults.chip,
       captainName: entryEventResults.captainName,
       captainPoints: entryEventResults.captainPoints,
+      transferCost: entryEventResults.transferCost,
     })
     .from(entryEventResults)
     .innerJoin(seasonEntries, eq(seasonEntries.id, entryEventResults.seasonEntryId))
@@ -159,7 +179,7 @@ export async function getPlannerOverview(): Promise<PlannerOverview | null> {
     };
   });
 
-  const snapshotEvent = fullIntel?.eventNumber ?? latestEvent;
+  const snapshotEvent = fullIntel?.eventNumber ?? lockedEvent ?? latestFinishedEvent;
 
   const captainPicks: CaptainPickRow[] =
     snapshotEvent === null
@@ -174,6 +194,32 @@ export async function getPlannerOverview(): Promise<PlannerOverview | null> {
           }))
           .sort((a, b) => (b.captainPoints ?? 0) - (a.captainPoints ?? 0));
 
+  const hitPointsByManager = new Map<string, number>();
+  if (lockedEvent !== null) {
+    for (const row of resultRows) {
+      if (row.eventNumber !== lockedEvent) continue;
+      hitPointsByManager.set(row.managerName, row.transferCost);
+    }
+  }
+
+  let gwTransfers: GwTransferRow[] = [];
+  if (lockedEvent !== null) {
+    const bootstrap = await fetchBootstrap();
+    const playerNames = new Map(
+      bootstrap.elements.map((element) => [element.id, element.web_name]),
+    );
+    gwTransfers = await loadGwTransfers({
+      eventNumber: lockedEvent,
+      members: entries.map((entry) => ({
+        providerEntryId: entry.providerEntryId,
+        managerName: entry.managerName,
+        teamName: entry.teamName,
+        hitPoints: hitPointsByManager.get(entry.managerName) ?? 0,
+      })),
+      playerNames,
+    });
+  }
+
   return {
     seasonName: season.name,
     eventNumber: snapshotEvent,
@@ -183,5 +229,6 @@ export async function getPlannerOverview(): Promise<PlannerOverview | null> {
     chipsPlayed,
     chipStatus,
     captainPicks,
+    gwTransfers,
   };
 }
