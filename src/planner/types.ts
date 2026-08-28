@@ -10,6 +10,7 @@ export interface PlannerElement {
   positionId: number;
   teamId: number;
   teamShortName: string;
+  photoCode: number | null;
   priceTenths: number;
   form: number | null;
   totalPoints: number | null;
@@ -25,6 +26,15 @@ export interface PlannerFixture {
   opponentShortName: string;
   isHome: boolean;
   difficulty: number | null;
+  kickoffTime: string | null;
+}
+
+export interface GameweekFixtureRow {
+  id: number;
+  eventNumber: number;
+  homeShortName: string;
+  awayShortName: string;
+  kickoffTime: string | null;
 }
 
 export interface SquadPlayer {

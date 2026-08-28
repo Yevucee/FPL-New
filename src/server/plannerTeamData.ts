@@ -1,8 +1,8 @@
 import { plannerEntryId } from "@/lib/plannerConfig";
-import { buildElementCatalog, buildFixturesByTeam } from "@/planner/elementCatalog";
+import { buildElementCatalog, buildFixturesByTeam, buildGameweekFixtureList, formatEventDeadline } from "@/planner/elementCatalog";
 import { enrichSquadPlayers } from "@/planner/enrichSquad";
 import { picksToSquadPlayers, pointsByElementFromPicks } from "@/planner/squadImport";
-import type { EnrichedSquadPlayer, PlannerElement, PlannerFixture, SquadPlayer } from "@/planner/types";
+import type { EnrichedSquadPlayer, GameweekFixtureRow, PlannerElement, PlannerFixture, SquadPlayer } from "@/planner/types";
 import {
   fetchBootstrap,
   fetchEntryPicks,
@@ -23,6 +23,8 @@ export interface PlannerTeamPayload {
   isImportedPick: boolean;
   catalogJson: Record<number, PlannerElement>;
   fixturesByTeamJson: Record<number, PlannerFixture[]>;
+  gameweekFixtures: GameweekFixtureRow[];
+  deadlineLabel: string | null;
 }
 
 const FUTURE_GW_LOOKAHEAD = 5;
@@ -89,6 +91,9 @@ export async function getPlannerTeamPayload(
 
   const catalogJson = Object.fromEntries(catalog.entries());
   const fixturesByTeamJson = Object.fromEntries(fixturesByTeam.entries());
+  const gameweekFixtures = buildGameweekFixtureList(fixtures, bootstrap.teams, eventNumber);
+  const eventMeta = bootstrap.events.find((event) => event.id === eventNumber);
+  const deadlineLabel = formatEventDeadline(eventMeta?.deadline_time);
 
   return {
     configured: true,
@@ -102,6 +107,8 @@ export async function getPlannerTeamPayload(
     isImportedPick,
     catalogJson,
     fixturesByTeamJson,
+    gameweekFixtures,
+    deadlineLabel,
   };
 }
 
