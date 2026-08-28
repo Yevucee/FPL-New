@@ -45,6 +45,9 @@ export function StandingsTable({ overview, standings, title }: StandingsTablePro
               {!isSummaryArchive && (
                 <th className="px-3 py-3 text-right">FPL rank</th>
               )}
+              {!isSummaryArchive && (
+                <th className="px-3 py-3 text-right">Transfers</th>
+              )}
               {isSummaryArchive && (
                 <th className="px-3 py-3 text-right">FPL rank</th>
               )}
@@ -100,6 +103,11 @@ export function StandingsTable({ overview, standings, title }: StandingsTablePro
                 {!isSummaryArchive && (
                   <td className="px-3 py-2.5 text-right tabular-nums text-slate-500">
                     {entryIntel[row.entryId]?.overallFplRank?.toLocaleString() ?? "—"}
+                  </td>
+                )}
+                {!isSummaryArchive && (
+                  <td className="px-3 py-2.5 text-right tabular-nums text-slate-600">
+                    {entryIntel[row.entryId]?.seasonTransfers ?? "—"}
                   </td>
                 )}
                 {isSummaryArchive && (
