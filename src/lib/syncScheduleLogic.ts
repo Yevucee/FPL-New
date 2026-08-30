@@ -112,6 +112,18 @@ export function isFixtureInPlay(fixture: FplFixture, now: Date): boolean {
   );
 }
 
+/** FPL sometimes leaves finished=false long after full time — treat as done once past the buffer. */
+export function isFixtureEffectivelyFinished(
+  fixture: FplFixture,
+  now: Date,
+): boolean {
+  if (fixture.finished) return true;
+  if (!fixture.started) return false;
+  const ended = fixtureEstimatedEnd(fixture);
+  if (!ended) return false;
+  return now.getTime() > ended.getTime() + POST_GAME_BUFFER_MS;
+}
+
 export function hasLiveFixtures(
   fixtures: ReadonlyArray<FplFixture>,
   now = new Date(),
@@ -194,7 +206,9 @@ export function endOfDaySchedule(
   }
 
   for (const [day, dayFixtures] of byDay) {
-    if (dayFixtures.some((f) => !f.finished)) continue;
+    if (dayFixtures.some((fixture) => !isFixtureEffectivelyFinished(fixture, now))) {
+      continue;
+    }
 
     let latestEnd = 0;
     for (const fixture of dayFixtures) {
@@ -271,6 +285,32 @@ export function gameweekFinalSchedule(
   return null;
 }
 
+/** Periodic refresh while the current GW is still open on FPL (fallback when flags lag). */
+export function liveGameweekRefreshSchedule(
+  events: ReadonlyArray<FplBootstrapEvent>,
+  fixtures: ReadonlyArray<FplFixture>,
+  now: Date,
+): SyncScheduleDecision | null {
+  const current = events.find((event) => event.is_current);
+  if (!current || current.finished) return null;
+
+  const gwFixtures = fixtures.filter((fixture) => fixture.event === current.id);
+  const hadKickoffs = gwFixtures.some((fixture) => {
+    const kickoff = fixtureKickoff(fixture);
+    return kickoff !== null && kickoff.getTime() <= now.getTime();
+  });
+  if (!hadKickoffs) return null;
+
+  const parts = getLondonParts(now);
+  if (!isMatchInterval(parts)) return null;
+
+  return {
+    run: true,
+    tier: "match",
+    reason: `GW${current.id} open on FPL — periodic score refresh`,
+  };
+}
+
 /**
  * Fixture-driven sync schedule:
  * - Every 15 min while PL games are live or just finished (+15 min buffer)
@@ -319,7 +359,8 @@ export function resolveScheduleFromFpl(input: ResolveScheduleInput): SyncSchedul
     postDeadlineSchedule(events, now, completed) ??
     gameweekFinalSchedule(events, completed) ??
     endOfDaySchedule(fixtures, now, completed) ??
-    morningAfterSchedule(fixtures, now, completed) ?? {
+    morningAfterSchedule(fixtures, now, completed) ??
+    liveGameweekRefreshSchedule(events, fixtures, now) ?? {
       run: false,
       tier: "skip",
       reason: "no live fixtures or scheduled sync slot",
