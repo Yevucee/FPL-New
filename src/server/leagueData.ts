@@ -12,7 +12,8 @@ import {
 } from "@/db/schema";
 import type { MostOwnedPlayer } from "@/providers/fpl/mostOwned";
 import { seasonNameFromSlug } from "@/lib/seasonNaming";
-import { leagueConfig } from "@/lib/leagueConfig";
+import { leagueConfig, leagueProviderIdOrThrow } from "@/lib/leagueConfig";
+import { overlayLiveGameweekScores } from "@/lib/liveLeagueScores";
 import { leagueHistoryProviderIds } from "@/lib/leagueHistoryConfig";
 import { MOST_OWNED_PUBLIC_LIMIT } from "@/lib/mostOwnedLimits";
 import { mergeManualHistoricalEntries } from "@/lib/mergeHistoricalStandings";
@@ -31,6 +32,7 @@ import { gameweekWinner, monthlyWinner } from "@/metrics/awards";
 import { computeLeagueInsights, type LeagueInsights } from "@/metrics/insights";
 import { computeStandings } from "@/metrics/standings";
 import type { EntryInput, ResultInput, StandingRow } from "@/metrics/types";
+import { fetchLiveLeagueScoreboard } from "@/providers/fpl/client";
 
 export interface AwardCard {
   eventNumber?: number;
@@ -149,6 +151,7 @@ export async function getLeagueOverview(
   const entryRows = await db
     .select({
       entryId: seasonEntries.id,
+      providerEntryId: seasonEntries.providerEntryId,
       managerName: managers.displayName,
       teamName: seasonEntries.teamName,
       joinEvent: seasonEntries.joinEvent,
@@ -297,6 +300,33 @@ export async function getLeagueOverview(
     );
     displayEntries = merged.entries;
     displayResults = merged.results;
+  }
+
+  if (
+    isLiveGameweek &&
+    liveEvent !== null &&
+    !season.state.includes("archived") &&
+    leagueConfig.providerId.trim()
+  ) {
+    try {
+      const liveScores = await fetchLiveLeagueScoreboard(leagueProviderIdOrThrow());
+      const providerToEntryId = new Map(
+        entryRows.map((row) => [row.providerEntryId, row.entryId]),
+      );
+      const phaseOnly = new Map<number, number>();
+      for (const [eventNumber, meta] of phaseByEvent) {
+        phaseOnly.set(eventNumber, meta.phase);
+      }
+      displayResults = overlayLiveGameweekScores(
+        displayResults,
+        liveEvent,
+        providerToEntryId,
+        liveScores,
+        phaseOnly,
+      );
+    } catch {
+      // Fall back to stored DB scores when FPL is unreachable.
+    }
   }
 
   const nameById = new Map(displayEntries.map((e) => [e.entryId, e]));
