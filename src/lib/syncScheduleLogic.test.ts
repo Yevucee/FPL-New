@@ -86,11 +86,12 @@ describe("resolveScheduleFromFpl", () => {
     expect(decision.tier).toBe("skip");
   });
 
-  it("skips repeated live sync when FPL leaves finished=false after full time", () => {
+  it("runs periodic refresh when FPL leaves finished=false after full time", () => {
     const now = londonLocalToUtc(2026, 8, 24, 10, 30);
     const fixtures: FplFixture[] = [
       fixture({
         id: 1,
+        event: 1,
         kickoff_time: "2026-08-21T19:00:00Z",
         started: true,
         finished: false,
@@ -101,7 +102,7 @@ describe("resolveScheduleFromFpl", () => {
     const decision = resolveScheduleFromFpl({
       now,
       fixtures,
-      events: [event({ id: 1, deadline_time: "2026-08-21T17:30:00Z" })],
+      events: [event({ id: 1, deadline_time: "2026-08-21T17:30:00Z", is_current: true })],
       completedScheduleKeys: new Set([
         "post-deadline-gw1",
         "end-of-day-2026-08-21",
@@ -113,8 +114,8 @@ describe("resolveScheduleFromFpl", () => {
       ]),
     });
 
-    expect(decision.run).toBe(false);
-    expect(decision.reason).toContain("no live fixtures");
+    expect(decision.run).toBe(true);
+    expect(decision.reason).toContain("periodic score refresh");
   });
 
   it("syncs every 15 minutes while a fixture is live", () => {
@@ -277,6 +278,31 @@ describe("resolveScheduleFromFpl", () => {
 
     expect(decision.run).toBe(true);
     expect(decision.scheduleKey).toBe("gw-final-gw1");
+  });
+
+  it("runs end-of-day sync when FPL leaves finished=false but game is over", () => {
+    const kickoff = new Date("2026-08-30T14:00:00Z");
+    const fixtures: FplFixture[] = [
+      fixture({
+        id: 1,
+        kickoff_time: kickoff.toISOString(),
+        started: true,
+        finished: false,
+        minutes: 90,
+      }),
+    ];
+    const ended = new Date(kickoff.getTime() + 90 * 60_000);
+    const now = new Date(ended.getTime() + END_OF_DAY_DELAY_MS + 60_000);
+
+    const decision = resolveScheduleFromFpl({
+      now,
+      fixtures,
+      events: [event({ id: 2, is_current: true })],
+      completedScheduleKeys: new Set(["post-deadline-gw2"]),
+    });
+
+    expect(decision.run).toBe(true);
+    expect(decision.scheduleKey).toMatch(/^end-of-day-/);
   });
 });
 

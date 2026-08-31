@@ -10,6 +10,7 @@ import {
   fetchLiveLeagueScoreboard,
   benchPointsFromPicks,
   livePointsByElement,
+  scoreFromPicks,
   sleep,
   type FplBootstrapEvent,
   type FplEntryHistoryEvent,
@@ -121,10 +122,22 @@ async function applyBenchBoostPoints(
     }
 
     const benchBoostPoints = benchPointsFromPicks(picksResponse.picks, livePoints);
+    const grossScore = scoreFromPicks(picksResponse.picks, livePoints);
+    const transferCost = result?.transferCost ?? 0;
+    const netPoints = grossScore - transferCost;
     updated.push({
       ...entry,
       results: entry.results.map((row) =>
-        row.eventNumber === eventNumber ? { ...row, benchBoostPoints } : row,
+        row.eventNumber === eventNumber
+          ? {
+              ...row,
+              netPoints,
+              grossPoints: grossScore,
+              totalPoints: (row.totalPoints ?? 0) + (netPoints - (row.netPoints ?? 0)),
+              benchBoostPoints,
+              chip: row.chip ?? picksResponse.active_chip ?? "bboost",
+            }
+          : row,
       ),
     });
   }
