@@ -13,7 +13,7 @@ import {
 import type { MostOwnedPlayer } from "@/providers/fpl/mostOwned";
 import { seasonNameFromSlug } from "@/lib/seasonNaming";
 import { leagueConfig, leagueProviderIdOrThrow } from "@/lib/leagueConfig";
-import { overlayLiveGameweekScores } from "@/lib/liveLeagueScores";
+import { overlayLiveGameweekScores, correctBenchBoostLiveScores } from "@/lib/liveLeagueScores";
 import { leagueHistoryProviderIds } from "@/lib/leagueHistoryConfig";
 import { MOST_OWNED_PUBLIC_LIMIT } from "@/lib/mostOwnedLimits";
 import { mergeManualHistoricalEntries } from "@/lib/mergeHistoricalStandings";
@@ -32,7 +32,7 @@ import { gameweekWinner, monthlyWinner } from "@/metrics/awards";
 import { computeLeagueInsights, type LeagueInsights } from "@/metrics/insights";
 import { computeStandings } from "@/metrics/standings";
 import type { EntryInput, ResultInput, StandingRow } from "@/metrics/types";
-import { fetchLiveLeagueScoreboard } from "@/providers/fpl/client";
+import { fetchLiveLeagueScoreboard, fetchEventLive, livePointsByElement } from "@/providers/fpl/client";
 
 export interface AwardCard {
   eventNumber?: number;
@@ -323,6 +323,16 @@ export async function getLeagueOverview(
         providerToEntryId,
         liveScores,
         phaseOnly,
+      );
+      const liveEventData = await fetchEventLive(liveEvent);
+      displayResults = await correctBenchBoostLiveScores(
+        displayResults,
+        liveEvent,
+        entryRows.map((row) => ({
+          entryId: row.entryId,
+          providerEntryId: row.providerEntryId,
+        })),
+        livePointsByElement(liveEventData),
       );
     } catch {
       // Fall back to stored DB scores when FPL is unreachable.

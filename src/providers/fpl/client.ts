@@ -358,6 +358,18 @@ export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/** Sum points for all picks (captain multiplier applied; all 15 count with Bench Boost). */
+export function scoreFromPicks(
+  picks: ReadonlyArray<FplPickWithStats>,
+  livePointsByElement?: ReadonlyMap<number, number>,
+): number {
+  return picks.reduce((sum, pick) => {
+    const fromPick = pick.stats?.total_points;
+    const pts = fromPick != null ? fromPick : (livePointsByElement?.get(pick.element) ?? 0);
+    return sum + pts * pick.multiplier;
+  }, 0);
+}
+
 /** Sum live/final points for bench slots (positions 12–15). */
 export function benchPointsFromPicks(
   picks: ReadonlyArray<FplPickWithStats>,
