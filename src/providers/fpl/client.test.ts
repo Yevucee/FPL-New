@@ -1,47 +1,20 @@
 import { describe, expect, it } from "vitest";
 
-import { benchPointsFromPicks, type FplPickWithStats } from "./client";
+import { scoreFromPicks } from "@/providers/fpl/client";
 
-function benchPick(position: number, points: number): FplPickWithStats {
-  return {
-    element: position,
-    position,
-    multiplier: 1,
-    is_captain: false,
-    is_vice_captain: false,
-    stats: { total_points: points },
-  };
-}
-
-describe("benchPointsFromPicks", () => {
-  it("sums only bench slots", () => {
-    const picks: FplPickWithStats[] = [
-      benchPick(11, 8),
-      benchPick(12, 3),
-      benchPick(13, 0),
-      benchPick(14, 6),
-      benchPick(15, 2),
+describe("scoreFromPicks", () => {
+  it("sums all pick points with captain multiplier", () => {
+    const picks = [
+      { element: 1, position: 10, multiplier: 2, is_captain: true, is_vice_captain: false },
+      { element: 2, position: 6, multiplier: 1, is_captain: false, is_vice_captain: false },
+      { element: 3, position: 12, multiplier: 1, is_captain: false, is_vice_captain: false },
     ];
-    expect(benchPointsFromPicks(picks)).toBe(11);
-  });
-
-  it("treats missing stats as zero", () => {
-    const picks: FplPickWithStats[] = [
-      { element: 12, position: 12, multiplier: 1, is_captain: false, is_vice_captain: false },
-      benchPick(13, 4),
-    ];
-    expect(benchPointsFromPicks(picks)).toBe(4);
-  });
-
-  it("uses live element points when pick stats are missing", () => {
-    const picks: FplPickWithStats[] = [
-      { element: 502, position: 13, multiplier: 1, is_captain: false, is_vice_captain: false },
-      { element: 329, position: 15, multiplier: 1, is_captain: false, is_vice_captain: false },
-    ];
-    const live = new Map([
-      [502, 3],
-      [329, 6],
+    const livePoints = new Map([
+      [1, 13],
+      [2, 23],
+      [3, 3],
     ]);
-    expect(benchPointsFromPicks(picks, live)).toBe(9);
+
+    expect(scoreFromPicks(picks, livePoints)).toBe(52);
   });
 });
