@@ -114,19 +114,27 @@ async function applyBenchBoostPoints(
     if (fetched > 0) await sleep(120);
     fetched += 1;
 
-    const picksResponse = await fetchEntryPicks(entry.providerEntryId, eventNumber);
-    if (!picksResponse) {
-      updated.push(entry);
-      continue;
-    }
+    try {
+      const picksResponse = await fetchEntryPicks(entry.providerEntryId, eventNumber);
+      if (!picksResponse) {
+        updated.push(entry);
+        continue;
+      }
 
-    const benchBoostPoints = benchPointsFromPicks(picksResponse.picks, livePoints);
-    updated.push({
-      ...entry,
-      results: entry.results.map((row) =>
-        row.eventNumber === eventNumber ? { ...row, benchBoostPoints } : row,
-      ),
-    });
+      const benchBoostPoints = benchPointsFromPicks(picksResponse.picks, livePoints);
+      updated.push({
+        ...entry,
+        results: entry.results.map((row) =>
+          row.eventNumber === eventNumber ? { ...row, benchBoostPoints } : row,
+        ),
+      });
+    } catch (err) {
+      console.warn(
+        `[buildSnapshot] bench boost skipped for entry ${entry.providerEntryId}:`,
+        err,
+      );
+      updated.push(entry);
+    }
   }
 
   return updated;
@@ -195,14 +203,18 @@ export async function buildSnapshotFromFpl(leagueId: string): Promise<LeagueSnap
   const currentEvent = bootstrap.events.find((event) => event.is_current);
   let finalEntries = entries;
   if (currentEvent) {
-    if (!currentEvent.finished) {
-      const liveScores = await fetchLiveLeagueScoreboard(leagueId);
-      finalEntries = applyLiveLeagueScores(entries, currentEvent.id, liveScores);
+    try {
+      if (!currentEvent.finished) {
+        const liveScores = await fetchLiveLeagueScoreboard(leagueId);
+        finalEntries = applyLiveLeagueScores(entries, currentEvent.id, liveScores);
+      }
+      const livePoints = currentEvent.finished
+        ? undefined
+        : livePointsByElement(await fetchEventLive(currentEvent.id));
+      finalEntries = await applyBenchBoostPoints(finalEntries, currentEvent.id, livePoints);
+    } catch (err) {
+      console.warn("[buildSnapshot] live score overlay skipped:", err);
     }
-    const livePoints = currentEvent.finished
-      ? undefined
-      : livePointsByElement(await fetchEventLive(currentEvent.id));
-    finalEntries = await applyBenchBoostPoints(finalEntries, currentEvent.id, livePoints);
   }
 
   return {

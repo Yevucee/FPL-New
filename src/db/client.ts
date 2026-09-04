@@ -24,7 +24,8 @@ const sql =
   postgres(connectionString, {
     max: 2,
     idle_timeout: 20,
-    connect_timeout: 10,
+    // Neon and other serverless Postgres can cold-start beyond a few seconds.
+    connect_timeout: 30,
   });
 
 if (process.env.NODE_ENV !== "production") {

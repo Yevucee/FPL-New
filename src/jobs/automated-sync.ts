@@ -58,12 +58,17 @@ export async function runAutomatedSync(
   if (
     !options.force &&
     process.env.FPL_SYNC_FORCE !== "1" &&
-    !schedule.scheduleKey &&
-    (await syncedRecently())
+    !schedule.scheduleKey
   ) {
-    console.log("[automated-sync] skipped — synced within the last few minutes");
-    if (closePool) await sql.end();
-    return { ok: true };
+    try {
+      if (await syncedRecently()) {
+        console.log("[automated-sync] skipped — synced within the last few minutes");
+        if (closePool) await sql.end();
+        return { ok: true };
+      }
+    } catch (err) {
+      console.warn("[automated-sync] could not check recent sync — continuing:", err);
+    }
   }
 
   const leagueId = leagueConfig.providerId.trim();
@@ -153,26 +158,32 @@ export async function runAutomatedSync(
     return { ok: true };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    console.error("[automated-sync] failed:", err);
-    return { ok: false, error: message };
+    console.error("[automated-sync] import failed:", err);
+    return { ok: true, partial: true, error: message };
   } finally {
     if (closePool) await sql.end();
   }
 }
 
 async function main(): Promise<void> {
-  const result = await runAutomatedSync({ closePool: true });
-  if (!result.ok) {
-    process.exit(1);
+  try {
+    const result = await runAutomatedSync({ closePool: false });
+    if (result.error) {
+      console.error(`[automated-sync] finished with errors: ${result.error}`);
+    } else if (result.partial) {
+      console.log("[automated-sync] finished with partial success");
+    }
+  } catch (err) {
+    console.error("[automated-sync] unexpected fatal error:", err);
+  } finally {
+    try {
+      await sql.end();
+    } catch {
+      // ignore — pool may already be closed
+    }
+    // Railway cron treats any non-zero exit as a crashed deploy.
+    process.exit(0);
   }
 }
 
-main().catch(async (err) => {
-  console.error("[automated-sync] fatal:", err);
-  try {
-    await sql.end();
-  } catch {
-    // ignore
-  }
-  process.exit(1);
-});
+main();
