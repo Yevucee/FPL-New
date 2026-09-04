@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { overlayLiveGameweekScores, correctBenchBoostLiveScores } from "@/lib/liveLeagueScores";
+import { overlayLiveGameweekScores, correctBenchBoostLiveScores, dedupeResultsByEntryEvent, applyLiveStandingsTotals } from "@/lib/liveLeagueScores";
 import type { ResultInput } from "@/metrics/types";
 
 vi.mock("@/providers/fpl/client", async (importOriginal) => {
@@ -119,5 +119,80 @@ describe("correctBenchBoostLiveScores", () => {
       benchBoostPoints: 16,
       chip: "bboost",
     });
+  });
+});
+
+describe("dedupeResultsByEntryEvent", () => {
+  it("removes duplicate GW rows for the same manager", () => {
+    const results: ResultInput[] = [
+      {
+        entryId: "a",
+        eventNumber: 3,
+        phase: 1,
+        netPoints: 80,
+        grossPoints: 80,
+        transferCost: 0,
+        benchPoints: 0,
+        chip: null,
+      },
+      {
+        entryId: "a",
+        eventNumber: 3,
+        phase: 1,
+        netPoints: 122,
+        grossPoints: 122,
+        transferCost: 0,
+        benchPoints: 0,
+        chip: null,
+      },
+    ];
+
+    expect(dedupeResultsByEntryEvent(results)).toHaveLength(1);
+    expect(dedupeResultsByEntryEvent(results)[0]?.netPoints).toBe(122);
+  });
+});
+
+describe("applyLiveStandingsTotals", () => {
+  it("uses FPL league totals and re-ranks during a live GW", () => {
+    const standings = applyLiveStandingsTotals(
+      [
+        {
+          entryId: "a",
+          managerName: "Samuel Polley",
+          teamName: "Yevu Athletic",
+          totalNetPoints: 294,
+          eventNetPoints: 122,
+          rank: 1,
+          previousRank: 2,
+          rankMovement: 1,
+          gapToLeader: 0,
+          gapToAbove: 0,
+        },
+        {
+          entryId: "b",
+          managerName: "Simon Richle",
+          teamName: "SC Waldrapp",
+          totalNetPoints: 284,
+          eventNetPoints: 108,
+          rank: 2,
+          previousRank: 1,
+          rankMovement: -1,
+          gapToLeader: 10,
+          gapToAbove: 10,
+        },
+      ],
+      [
+        { entryId: "a", providerEntryId: "3386632" },
+        { entryId: "b", providerEntryId: "111" },
+      ],
+      new Map([
+        ["3386632", { entryId: "3386632", eventTotal: 122, total: 172, rank: 3 }],
+        ["111", { entryId: "111", eventTotal: 108, total: 176, rank: 1 }],
+      ]),
+    );
+
+    expect(standings[0]?.managerName).toBe("Simon Richle");
+    expect(standings[0]?.totalNetPoints).toBe(176);
+    expect(standings.find((row) => row.entryId === "a")?.totalNetPoints).toBe(172);
   });
 });

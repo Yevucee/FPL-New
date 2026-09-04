@@ -13,7 +13,7 @@ import {
 import type { MostOwnedPlayer } from "@/providers/fpl/mostOwned";
 import { seasonNameFromSlug } from "@/lib/seasonNaming";
 import { leagueConfig, leagueProviderIdOrThrow } from "@/lib/leagueConfig";
-import { overlayLiveGameweekScores, correctBenchBoostLiveScores } from "@/lib/liveLeagueScores";
+import { overlayLiveGameweekScores, correctBenchBoostLiveScores, applyLiveStandingsTotals } from "@/lib/liveLeagueScores";
 import { leagueHistoryProviderIds } from "@/lib/leagueHistoryConfig";
 import { MOST_OWNED_PUBLIC_LIMIT } from "@/lib/mostOwnedLimits";
 import { mergeManualHistoricalEntries } from "@/lib/mergeHistoricalStandings";
@@ -32,7 +32,7 @@ import { gameweekWinner, monthlyWinner } from "@/metrics/awards";
 import { computeLeagueInsights, type LeagueInsights } from "@/metrics/insights";
 import { computeStandings } from "@/metrics/standings";
 import type { EntryInput, ResultInput, StandingRow } from "@/metrics/types";
-import { fetchLiveLeagueScoreboard, fetchEventLive, livePointsByElement } from "@/providers/fpl/client";
+import { fetchLiveLeagueScoreboard, fetchEventLive, livePointsByElement, type LiveLeagueScore } from "@/providers/fpl/client";
 
 export interface AwardCard {
   eventNumber?: number;
@@ -287,6 +287,7 @@ export async function getLeagueOverview(
 
   let displayEntries = entries;
   let displayResults = results;
+  let liveScoreboard: Map<string, LiveLeagueScore> | null = null;
   if (
     season.state === "archived-summary" &&
     selectedEvent !== null &&
@@ -310,6 +311,7 @@ export async function getLeagueOverview(
   ) {
     try {
       const liveScores = await fetchLiveLeagueScoreboard(leagueProviderIdOrThrow());
+      liveScoreboard = liveScores;
       const providerToEntryId = new Map(
         entryRows.map((row) => [row.providerEntryId, row.entryId]),
       );
@@ -441,13 +443,23 @@ export async function getLeagueOverview(
     windowThroughEvent !== null
       ? computeStandings(displayEntries, scopedResults, windowThroughEvent)
       : [];
-  const standings = standingsRaw.map((row) => ({
+  let standings = standingsRaw.map((row) => ({
     ...row,
     gwVsAverage:
       insights?.leagueAverageGw != null
         ? Math.round((row.eventNetPoints - insights.leagueAverageGw) * 10) / 10
         : null,
   }));
+
+  if (isLiveGameweek && liveScoreboard) {
+    standings = applyLiveStandingsTotals(standings, entryRows, liveScoreboard).map((row) => ({
+      ...row,
+      gwVsAverage:
+        insights?.leagueAverageGw != null
+          ? Math.round((row.eventNetPoints - insights.leagueAverageGw) * 10) / 10
+          : null,
+    }));
+  }
 
   let mostOwned: MostOwnedPlayer[] | null = null;
   let mostOwnedEvent: number | null = null;
